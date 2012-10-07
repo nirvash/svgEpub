@@ -3,6 +3,7 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import javax.activation.ActivationDataFlavor;
@@ -22,7 +23,6 @@ public class FileDropHandler extends TransferHandler {
 	private int addCount = 0; //Number of items added.
 
 	public FileDropHandler(DefaultListModel aModel) {
-        model = aModel;
         localObjectFlavor = new ActivationDataFlavor(
         		Object[].class, DataFlavor.javaJVMLocalObjectMimeType, "Array of Items");
     }
@@ -76,6 +76,7 @@ public class FileDropHandler extends TransferHandler {
 		try {
             @SuppressWarnings("unchecked")
 			List<File> values = (List<File>)transferable.getTransferData(DataFlavor.javaFileListFlavor);
+            Collections.sort(values, new FileComperator());
             for (Object value : values) {
             	int idx = index++;
             	
@@ -144,6 +145,4 @@ public class FileDropHandler extends TransferHandler {
 		addCount = 0;
 		addIndex = -1;
 	}
-
-    private DefaultListModel model;
 }

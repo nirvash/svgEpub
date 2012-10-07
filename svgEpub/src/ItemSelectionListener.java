@@ -1,21 +1,12 @@
 import java.awt.CardLayout;
 import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 import javax.swing.DefaultListModel;
 import javax.swing.JEditorPane;
-import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-import javax.swing.text.EditorKit;
-import javax.swing.text.html.HTMLDocument;
 
 import org.apache.batik.swing.JSVGCanvas;
 
@@ -42,7 +33,7 @@ public class ItemSelectionListener implements ListSelectionListener {
 		File file = (File)model.get(index);
 		
 		String html = "";
-		if (isSvgFile(file)) {
+		if (mainPanel.isSvgFile(file)) {
 			cardLayout.last(parent);
 			svgCanvas.setURI(file.toURI().toString());
 		} else {
@@ -58,9 +49,4 @@ public class ItemSelectionListener implements ListSelectionListener {
 			pane.setText(html);
 		}
 	}
-
-	private boolean isSvgFile(File file) {
-		return file.isFile() && file.canRead() && file.getPath().endsWith(".svg");
-	}
-
 }
