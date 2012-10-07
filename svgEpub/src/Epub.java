@@ -45,6 +45,8 @@ public class Epub {
 			if (mainPanel.isSvgFile(file)) {
 				String svg = readFile(file);
 				svg = svg.replaceAll("((<\\?xml.*>)|(<!DOCTYPE((.|\n|\r)*?)\">))", "");
+				svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
+				svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
 				String html = template.replaceAll("%%BODY%%", svg);
 				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
 				book.addSection(pageName, new Resource(bi, pageFile));

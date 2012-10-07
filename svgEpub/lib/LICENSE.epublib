@@ -1,0 +1,11 @@
+License
+Epublib is licensed under the GNU Lesser General Public License.
+
+This means that you can use epublib with both open-source and proprietary software.
+The only requirement is that when you distribute your program you have to make the source of epublib available (putting a link in your documentation is fine) and if you modify epublib (bug-fixes, new features, etc) you must also make these available.
+You do not have to make the source code of your application available.
+
+For the full text of the license see here: http://www.gnu.org/copyleft/lesser.html
+
+For why the LGPL works fine for java libraries see here: http://www.gnu.org/licenses/lgpl-java.html
+
