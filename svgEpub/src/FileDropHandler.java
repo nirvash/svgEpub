@@ -40,7 +40,7 @@ public class FileDropHandler extends TransferHandler {
         if (!support.isDrop()) {
             return false;
         }
-        
+
         return support.isDataFlavorSupported(DataFlavor.javaFileListFlavor) ||
         	   support.isDataFlavorSupported(localObjectFlavor);
     }
@@ -77,11 +77,12 @@ public class FileDropHandler extends TransferHandler {
             @SuppressWarnings("unchecked")
 			List<File> values = (List<File>)transferable.getTransferData(DataFlavor.javaFileListFlavor);
             Collections.sort(values, new FileComperator());
-            for (Object value : values) {
-            	int idx = index++;
-            	
-            	listModel.add(idx, value);
-            	target.addSelectionInterval(idx, idx);
+            for (File value : values) {
+            	if (mainPanel.canHandle(value)) {
+	            	int idx = index++;
+	            	listModel.add(idx, value);
+	            	target.addSelectionInterval(idx, idx);
+            	}
             }
         } catch (UnsupportedFlavorException e) {
             return false;

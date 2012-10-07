@@ -277,10 +277,22 @@ public class mainPanel extends JFrame implements ActionListener {
 			epubWriter.createEpub(list);
 		}
 	}
+	
+	static boolean canHandle(File file) {
+		return isSvgFile(file) || isImageFile(file);
+	}
 
 
 	static boolean isSvgFile(File file) {
 		return file.isFile() && file.canRead() && file.getPath().endsWith(".svg");
 	}
+	
+	static boolean isImageFile(File file) {
+		return file.isFile() && file.canRead() && 
+				(file.getPath().endsWith(".jpg") ||
+				 file.getPath().endsWith(".gif") ||
+				 file.getPath().endsWith(".png"));
+	}
+
 	
 }

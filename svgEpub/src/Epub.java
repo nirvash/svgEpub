@@ -1,14 +1,22 @@
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Enumeration;
+import java.util.Iterator;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
@@ -43,16 +51,63 @@ public class Epub {
 			String pageFile = pageName + ".xhtml";
 			File file = list.nextElement();
 			if (mainPanel.isSvgFile(file)) {
-				String svg = readFile(file);
-				svg = svg.replaceAll("((<\\?xml.*>)|(<!DOCTYPE((.|\n|\r)*?)\">))", "");
-				svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
-				svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
-				String html = template.replaceAll("%%BODY%%", svg);
-				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
-				book.addSection(pageName, new Resource(bi, pageFile));
+				createSvgPage(book, template, pageName, pageFile, file);
+				page++;
+			} else if (mainPanel.isImageFile(file)) {
+				createImagePage(book, template, pageName, pageFile, file);
 				page++;
 			}
 		}		
+	}
+
+
+	private void createImagePage(Book book, String template, String pageName,
+			String pageFile, File file)  {
+		try {
+	    	String extension = getExtension(file.getName());
+	    	String imageFile = "images/" + pageName + "." + extension;
+	    	
+	    	Iterator<ImageReader> readers = ImageIO.getImageReadersBySuffix(extension);
+	        ImageReader imageReader = (ImageReader) readers.next();
+	        
+	    	FileInputStream stream = new FileInputStream(file);
+	        ImageInputStream imageInputStream = ImageIO.createImageInputStream(stream);
+	        imageReader.setInput(imageInputStream, false);
+	        int width = imageReader.getWidth(0);
+	        int height = imageReader.getHeight(0);
+	        stream.close();
+	        
+	    	String tag = String.format("<svg version=\"1.1\" " +
+	    			"xmlns=\"http://www.w3.org/2000/svg\" " +
+	    			"xmlns:xlink=\"http://www.w3.org/1999/xlink\" " +
+	    			"width=\"100%%\" height=\"100%%\" viewBox=\"0 0 %d %d\" " +
+	    			"preserveAspectRatio=\"xMidYMid meet\">\n" +
+	    			"<image width=\"%d\" height=\"%d\" xlink:href=\"%s\"/>\n</svg>", width, height, width, height, imageFile);
+			String html = template.replaceAll("%%BODY%%", tag);
+			
+			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+			book.addSection(pageName, new Resource(bi, pageFile));
+			
+	        stream = new FileInputStream(file);	    	
+			book.getResources().add(new Resource(stream, imageFile));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+	}
+	
+	
+
+	private void createSvgPage(Book book, String template, String pageName,
+			String pageFile, File file) throws IOException,
+			UnsupportedEncodingException {
+		String svg = readFile(file);
+		svg = svg.replaceAll("((<\\?xml.*>)|(<!DOCTYPE((.|\n|\r)*?)\">))", "");
+		svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
+		svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
+		String html = template.replaceAll("%%BODY%%", svg);
+		ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+		book.addSection(pageName, new Resource(bi, pageFile));
 	}
 
     static String convertInputStreamToString(InputStream is) throws IOException {
@@ -78,4 +133,9 @@ public class Epub {
     		stream.close();
     	}
 	}
+    
+    public String getExtension(String str) {
+        String strs[] = str.split("\\.");
+        return strs[strs.length - 1];
+    }
 }
