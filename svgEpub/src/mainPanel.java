@@ -2,6 +2,9 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -15,10 +18,17 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+
+import nl.siegmann.epublib.domain.Author;
+import nl.siegmann.epublib.domain.Book;
+import nl.siegmann.epublib.domain.Resource;
+import nl.siegmann.epublib.epub.EpubWriter;
+import nl.siegmann.epublib.service.MediatypeService;
 
 import org.apache.batik.swing.JSVGCanvas;
 import org.dyno.visual.swing.layouts.Bilateral;
@@ -45,6 +55,8 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JSVGCanvas svgCanvas;
 	private JPanel jPanel4;
 	private CardLayout cardLayout;
+	private JButton jButton2;
+	private JSeparator jSeparator0;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	public mainPanel() {
 		initComponents();
@@ -58,6 +70,23 @@ public class mainPanel extends JFrame implements ActionListener {
 	}
 
 	
+	private JSeparator getJSeparator0() {
+		if (jSeparator0 == null) {
+			jSeparator0 = new JSeparator();
+		}
+		return jSeparator0;
+	}
+
+	private JButton getJButton2() {
+		if (jButton2 == null) {
+			jButton2 = new JButton();
+			jButton2.setText("Create EPUB");
+			jButton2.setActionCommand("Create");
+			jButton2.addActionListener(this);
+		}
+		return jButton2;
+	}
+
 	private JSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
 			svgCanvas = new JSVGCanvas();
@@ -157,6 +186,8 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanel2.setLayout(new BoxLayout(jPanel2, BoxLayout.X_AXIS));
 			jPanel2.add(getJButton0());
 			jPanel2.add(getJButton1());
+			jPanel2.add(getJButton2());
+			jPanel2.add(getJSeparator0());
 		}
 		return jPanel2;
 	}
@@ -243,7 +274,27 @@ public class mainPanel extends JFrame implements ActionListener {
 		} else if (e.getActionCommand().equals("Clear")) {
 			DefaultListModel model = (DefaultListModel)jList0.getModel();
 			model.clear();
+		} else if (e.getActionCommand().equals("Create")) {
+			createEpub();
 		}
+	}
+
+	private void createEpub() {
+		try {
+			Book book = new Book();
+			book.getMetadata().addTitle("Epub Test");
+			book.getMetadata().addAuthor(new Author("test", "test2"));
+			InputStream is = mainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
+			book.addSection("Introduction", new Resource(is, "chapter1.html"));
+			InputStream is2 = mainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
+			book.addSection("Section 2", new Resource(is2, "chapter2.html"));
+			
+			EpubWriter epubWriter = new EpubWriter();
+			FileOutputStream out =  new FileOutputStream("test.epub");
+			epubWriter.write(book, out);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}		
 	}
 
 }
