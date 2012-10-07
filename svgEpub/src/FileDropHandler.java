@@ -78,6 +78,7 @@ public class FileDropHandler extends TransferHandler {
 			List<File> values = (List<File>)transferable.getTransferData(DataFlavor.javaFileListFlavor);
             for (Object value : values) {
             	int idx = index++;
+            	
             	listModel.add(idx, value);
             	target.addSelectionInterval(idx, idx);
             }
