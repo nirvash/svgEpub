@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-import javax.naming.BinaryRefAddr;
 import javax.swing.JFileChooser;
 
 import nl.siegmann.epublib.domain.Author;
@@ -132,9 +131,11 @@ public class Epub {
 				return null;
 			}
 		}
-		
+
+		// 				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 4 -b 1 -1 -t 0.5", 
+
 		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 4 -b 1 -1 -t 0.5", 
+				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 2 -b 2 -1 -t 0.5", 
 				mkbitmap.getPath(), file.getPath(), pnmFile
 				);
 		try {
@@ -166,7 +167,7 @@ public class Epub {
 //				"\"%s\" \"%s\" -o \"%s\" -s -r 167 --tight", 
 		
 		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -s -u 10 -a 0 ", 
+				"\"%s\" \"%s\" -o \"%s\" -s -u 7 -a 0", 
 				potrace.getPath(), file.getPath(), svgFile
 				);
 		try {
