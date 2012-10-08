@@ -84,13 +84,19 @@ public class Epub {
 
 
 	private File convertToBitmap(File file) {
-		String outFilename = file.getPath().replaceAll("\\.[^.]*$", ".bmp");
+		String path = file.getParent() + "\\tmp\\";
+		String outFilename = path + file.getName();
+		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");		
 		try {
 			FileInputStream in = new FileInputStream(file);
 			BufferedImage image = ImageIO.read(in);
 			in.close();
+			
+			File dir = new File(path);
+			dir.mkdirs();
 			OutputStream out = new FileOutputStream(outFilename);
 			ImageIO.write(image, "bmp", out);
+			out.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
@@ -112,9 +118,10 @@ public class Epub {
 				return null;
 			}
 		}
+//				"\"%s\" \"%s\" -o \"%s\" -s -r 167 --tight", 
 		
 		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -s -r 167 --tight", 
+				"\"%s\" \"%s\" -o \"%s\" -s -u 10 -a 0 ", 
 				potrace.getPath(), file.getPath(), svgFile
 				);
 		try {
@@ -158,6 +165,7 @@ public class Epub {
 			
 	        stream = new FileInputStream(file);	    	
 			book.getResources().add(new Resource(stream, imageFile));
+			stream.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -189,10 +197,10 @@ public class Epub {
 			if (mh.find()) {
 				height = Integer.parseInt(mh.group(3));
 			}
-			
+/*			
 			svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
 			svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
-			
+*/			
 
 	    	String tag = String.format("<svg version=\"1.1\" " +
 	    			"xmlns=\"http://www.w3.org/2000/svg\" " +
@@ -204,9 +212,13 @@ public class Epub {
 			
 			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
 			book.addSection(pageName, new Resource(bi, pageFile));
+			bi.close();
 
-			ByteArrayInputStream bsvg = new ByteArrayInputStream(svg.getBytes("UTF-8"));
-			book.getResources().add(new Resource(bsvg, imageFile));
+//			ByteArrayInputStream bsvg = new ByteArrayInputStream(svg.getBytes("UTF-8"));
+//			book.getResources().add(new Resource(bsvg, imageFile));
+			FileInputStream stream = new FileInputStream(file);	    	
+			book.getResources().add(new Resource(stream, imageFile));
+			stream.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -223,6 +235,7 @@ public class Epub {
 		String html = template.replaceAll("%%BODY%%", svg);
 		ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
 		book.addSection(pageName, new Resource(bi, pageFile));
+		bi.close();
 	}
 
     static String convertInputStreamToString(InputStream is) throws IOException {
