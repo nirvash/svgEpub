@@ -14,9 +14,6 @@ import javax.swing.DropMode;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JList;
-import javax.swing.JMenu;
-import javax.swing.JMenuBar;
-import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
@@ -34,10 +31,6 @@ import org.dyno.visual.swing.layouts.GroupLayout;
 public class mainPanel extends JFrame implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
-	private JMenuBar jMenuBar0;
-	private JMenu jMenu0;
-	private JMenuItem jMenuItem0;
-	
 	private JScrollPane jScrollPane1;
 	private JSplitPane jSplitPane1;
 
@@ -45,6 +38,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel jPanel4;
 	private CardLayout cardLayout;
 	private ImagePanel imagePanel;
+	private NavigableImagePanel naviImagePanel;
 	private JSVGCanvas svgCanvas;
 
 	private JPanel jPanel1;
@@ -56,8 +50,8 @@ public class mainPanel extends JFrame implements ActionListener {
 
 	private JPanel jPanelNorth;
 	private JButton jButton2;
-
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
+
 	public mainPanel() {
 		initComponents();
 	}
@@ -65,11 +59,9 @@ public class mainPanel extends JFrame implements ActionListener {
 	private void initComponents() {
 		setLayout(new GroupLayout());
 		add(getJPanel1(), new Constraints(new Bilateral(0, 0, 0), new Bilateral(0, 0, 0)));
-		setJMenuBar(getJMenuBar0());
 		setSize(640, 452);
 	}
 
-	
 	private JSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
 			svgCanvas = new JSVGCanvas();
@@ -103,10 +95,19 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jScrollPane0 == null) {
 			jScrollPane0 = new JScrollPane();
 			jScrollPane0.setAutoscrolls(true);
-			jScrollPane0.setViewportView(getImagePanel());
-			getImagePanel().setParent(jScrollPane0);
+//			jScrollPane0.setViewportView(getImagePanel());
+//			getImagePanel().setParent(jScrollPane0);
+			jScrollPane0.setViewportView(getNavigableImagePanel());
 		}
 		return jScrollPane0;
+	}
+	
+	
+	private NavigableImagePanel getNavigableImagePanel() {
+		if (naviImagePanel == null) {
+			naviImagePanel = new NavigableImagePanel();
+		}
+		return naviImagePanel;
 	}
 	
 	private ImagePanel getImagePanel() {
@@ -166,7 +167,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.setDragEnabled(true);
 		    jList0.setBackground(Color.WHITE);
 		    jList0.setSelectionBackground(new Color(200, 200, 255));
-		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getImagePanel(), getSvgCanvas(), fileListModel));
+		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getNavigableImagePanel(), getSvgCanvas(), fileListModel));
 		    jList0.addMouseListener(new ListMouseListener());
 		    
 		}
@@ -212,31 +213,6 @@ public class mainPanel extends JFrame implements ActionListener {
 			jSplitPane1.setRightComponent(getJPanel4());
 		}
 		return jSplitPane1;
-	}
-
-	private JMenuBar getJMenuBar0() {
-		if (jMenuBar0 == null) {
-			jMenuBar0 = new JMenuBar();
-			jMenuBar0.add(getJMenu0());
-		}
-		return jMenuBar0;
-	}
-
-	private JMenu getJMenu0() {
-		if (jMenu0 == null) {
-			jMenu0 = new JMenu();
-			jMenu0.setText("jMenu0");
-			jMenu0.add(getJMenuItem0());
-		}
-		return jMenu0;
-	}
-
-	private JMenuItem getJMenuItem0() {
-		if (jMenuItem0 == null) {
-			jMenuItem0 = new JMenuItem();
-			jMenuItem0.setText("jMenuItem0");
-		}
-		return jMenuItem0;
 	}
 
 	private static void installLnF() {
