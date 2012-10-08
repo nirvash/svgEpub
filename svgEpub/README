@@ -1,4 +1,38 @@
-Not released yet..
+What is svgEpub?
+ * It generates epub file contains svg data from image files.
+ 
+ Pros:
+  - For no flickering page turn on PRS-T2.
+  - Even if you enlarge  the page, characters will be displayed finely. 
 
-I modified epublib to support page-progression-direction.
-I attached modified source codes in patched_lib_src directory.
+ Cons:
+  - It takes time for conversion. 
+
+Usage:
+ 1. Drop image files (jpeg, png, gif, svg)
+ 2. Checked image files (jpeg, png, gif) will be converted into svg files.
+ 3. Push Create Epub button.
+ 4. Select path to save epub.
+    Set title and author.
+    Input filename of epub.
+ 5. Push save button.
+ 6. Please wait for a while. 
+
+
+Limitation:
+ * No parameter option for conversion of svg.
+ * No progress dialog while saving.
+ * Page progression direction is rtl. (Right to Left)
+
+
+Wish list: (Someone may implement them. :)
+ * The function to distinguish a sentence from an illustration automatically.
+ * The function of generating PDF.
+ * Zip file as input data.
+ * Preview function.
+ 
+
+Notification:
+ I modified epublib to support page-progression-direction.
+ I attached modified source codes in patched_lib_src directory.
+ 
