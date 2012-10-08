@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.naming.BinaryRefAddr;
 import javax.swing.JFileChooser;
 
 import nl.siegmann.epublib.domain.Author;
@@ -65,14 +66,24 @@ public class Epub {
 				page++;
 			} else if (mainPanel.isImageFile(file)) {
 				if (item.isSelected()) {
-					File bitmapFile = convertToBitmap(file);
-					if (bitmapFile != null) {
-						File svgFile = convertToSvg(bitmapFile);
+					File bitmapFile = null;
+					File pnmFile = null;
+					try {
+						bitmapFile = convertToBitmap(file);
+						if (bitmapFile == null || !bitmapFile.exists()) continue;
+						
+						pnmFile = convertToPnm(bitmapFile);
+						if (pnmFile == null || !pnmFile.exists()) continue;
+						
+						File svgFile = convertToSvg(pnmFile);
 						if (svgFile != null) {
 							createSvgPage(book, template, pageName, pageFile, svgFile);
 							page++;
 						}
-						bitmapFile.delete();
+					} finally {
+//						if (bitmapFile != null) bitmapFile.delete();
+//						if (pnmFile != null) pnmFile.delete();
+						
 					}
 				} else {
 					createImagePage(book, template, pageName, pageFile, file);
@@ -92,6 +103,8 @@ public class Epub {
 			BufferedImage image = ImageIO.read(in);
 			in.close();
 			
+//			BufferedImage binalized = BilevelUtil.binarize(image);
+			
 			File dir = new File(path);
 			dir.mkdirs();
 			OutputStream out = new FileOutputStream(outFilename);
@@ -102,6 +115,38 @@ public class Epub {
 			return null;
 		}
 		return new File(outFilename);
+	}
+	
+
+	private File convertToPnm(File file) {
+		String pnmFile = file.getPath().replaceAll("\\.[^.]*$", ".pnm");
+		File mkbitmap = new File("thirdparty/mkbitmap.exe");
+		String p = mkbitmap.getAbsolutePath();
+		if (!mkbitmap.exists()) {
+			JFileChooser c = new JFileChooser();
+			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			int ret = c.showOpenDialog(null);
+			if (ret == JFileChooser.APPROVE_OPTION) {
+				mkbitmap = c.getSelectedFile();
+			} else {
+				return null;
+			}
+		}
+		
+		String command = String.format(
+				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 4 -b 1 -1 -t 0.5", 
+				mkbitmap.getPath(), file.getPath(), pnmFile
+				);
+		try {
+			RuntimeUtility.execute(command);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new File(pnmFile);
 	}
 
 	private File convertToSvg(File file) {
