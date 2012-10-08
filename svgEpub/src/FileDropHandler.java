@@ -81,7 +81,7 @@ public class FileDropHandler extends TransferHandler {
             	if (mainPanel.canHandle(value)) {
 	            	int idx = index++;
 	            	listModel.add(idx, new ListItem(value));
-	            	target.addSelectionInterval(idx, idx);
+	            	// target.addSelectionInterval(idx, idx);
             	}
             }
         } catch (UnsupportedFlavorException e) {

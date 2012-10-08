@@ -7,6 +7,9 @@ public class ListItem {
 	
 	public ListItem(File value) {
 		this.file = value;
+		if (mainPanel.isImageFile(file)) {
+			this.isSelected = true;
+		}
 	}
 	
 	public boolean isSelected() {

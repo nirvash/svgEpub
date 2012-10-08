@@ -10,7 +10,6 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
 import javax.swing.JButton;
-import javax.swing.JEditorPane;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JMenu;
@@ -43,7 +42,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JScrollPane jScrollPane0;
 	private JPanel jPanel4;
 	private CardLayout cardLayout;
-	private JEditorPane jEditorPane0;
+	private ImagePanel imagePanel;
 	private JSVGCanvas svgCanvas;
 
 	private JPanel jPanel1;
@@ -72,6 +71,11 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
 			svgCanvas = new JSVGCanvas();
+			
+			svgCanvas.setEnableImageZoomInteractor(true);
+			svgCanvas.setEnablePanInteractor(true);
+			svgCanvas.setEnableZoomInteractor(false);
+			svgCanvas.setEnableRotateInteractor(false);
 		}
 		return svgCanvas;
 	}
@@ -96,17 +100,18 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JScrollPane getJScrollPane0() {
 		if (jScrollPane0 == null) {
 			jScrollPane0 = new JScrollPane();
-			jScrollPane0.setViewportView(getJEditorPane0());
+			jScrollPane0.setAutoscrolls(true);
+			jScrollPane0.setViewportView(getImagePanel());
+			getImagePanel().setParent(jScrollPane0);
 		}
 		return jScrollPane0;
 	}
-
-	private JEditorPane getJEditorPane0() {
-		if (jEditorPane0 == null) {
-			jEditorPane0 = new JEditorPane();
-			jEditorPane0.setEditable(false);
+	
+	private ImagePanel getImagePanel() {
+		if (imagePanel == null) {
+			imagePanel = new ImagePanel();
 		}
-		return jEditorPane0;
+		return imagePanel;
 	}
 
 	private JButton getJButton2() {
@@ -159,7 +164,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.setDragEnabled(true);
 		    jList0.setBackground(Color.WHITE);
 		    jList0.setSelectionBackground(new Color(200, 200, 255));
-		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getJEditorPane0(), getSvgCanvas(), fileListModel));
+		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getImagePanel(), getSvgCanvas(), fileListModel));
 		    jList0.addMouseListener(new ListMouseListener());
 		    
 		}

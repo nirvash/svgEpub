@@ -1,3 +1,4 @@
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -5,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -17,6 +19,8 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.swing.JFileChooser;
+
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
@@ -60,12 +64,70 @@ public class Epub {
 				createSvgPage(book, template, pageName, pageFile, file);
 				page++;
 			} else if (mainPanel.isImageFile(file)) {
-				createImagePage(book, template, pageName, pageFile, file);
-				page++;
+				if (item.isSelected()) {
+					File bitmapFile = convertToBitmap(file);
+					if (bitmapFile != null) {
+						File svgFile = convertToSvg(bitmapFile);
+						if (svgFile != null) {
+							createSvgPage(book, template, pageName, pageFile, svgFile);
+							page++;
+						}
+						bitmapFile.delete();
+					}
+				} else {
+					createImagePage(book, template, pageName, pageFile, file);
+					page++;
+				}
 			}
 		}		
 	}
 
+
+	private File convertToBitmap(File file) {
+		String outFilename = file.getPath().replaceAll("\\.[^.]*$", ".bmp");
+		try {
+			FileInputStream in = new FileInputStream(file);
+			BufferedImage image = ImageIO.read(in);
+			in.close();
+			OutputStream out = new FileOutputStream(outFilename);
+			ImageIO.write(image, "bmp", out);
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+		return new File(outFilename);
+	}
+
+	private File convertToSvg(File file) {
+		String svgFile = file.getPath().replaceAll("\\.[^.]*$", ".svg");
+		File potrace = new File("thirdparty/potrace.exe");
+		String p = potrace.getAbsolutePath();
+		if (!potrace.exists()) {
+			JFileChooser c = new JFileChooser();
+			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
+			int ret = c.showOpenDialog(null);
+			if (ret == JFileChooser.APPROVE_OPTION) {
+				potrace = c.getSelectedFile();
+			} else {
+				return null;
+			}
+		}
+		
+		String command = String.format(
+				"\"%s\" \"%s\" -o \"%s\" -s -r 167 --tight", 
+				potrace.getPath(), file.getPath(), svgFile
+				);
+		try {
+			RuntimeUtility.execute(command);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return new File(svgFile);
+	}
 
 	private void createImagePage(Book book, String template, String pageName,
 			String pageFile, File file)  {
