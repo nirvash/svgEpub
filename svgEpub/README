@@ -8,6 +8,7 @@ What is svgEpub?
  Cons:
   - It takes time for conversion. 
 
+
 Usage:
  1. Drop image files (jpeg, png, gif, svg)
  2. Checked image files (jpeg, png, gif) will be converted into svg files.
@@ -18,11 +19,16 @@ Usage:
  5. Push save button.
  6. Please wait for a while. 
 
+Prebuild binary:
+ binary/svgEpub.jar (for win64) 
+
 
 Limitation:
+ * It works on windows x64 environment only.
  * No parameter option for conversion of svg.
  * No progress dialog while saving.
  * Page progression direction is rtl. (Right to Left)
+ * etc...
 
 
 Wish list: (Someone may implement them. :)
@@ -36,3 +42,7 @@ Notification:
  I modified epublib to support page-progression-direction.
  I attached modified source codes in patched_lib_src directory.
  
+
+Contact:
+ https://github.com/nirvash/svgEpub
+ nirvash@gmail.com
