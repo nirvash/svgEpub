@@ -80,7 +80,7 @@ public class FileDropHandler extends TransferHandler {
             for (File value : values) {
             	if (mainPanel.canHandle(value)) {
 	            	int idx = index++;
-	            	listModel.add(idx, value);
+	            	listModel.add(idx, new ListItem(value));
 	            	target.addSelectionInterval(idx, idx);
             	}
             }

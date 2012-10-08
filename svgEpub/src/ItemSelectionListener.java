@@ -30,7 +30,8 @@ public class ItemSelectionListener implements ListSelectionListener {
 	public void valueChanged(ListSelectionEvent e) {
 		if (e.getValueIsAdjusting()) return;
 		int index = ((JList)e.getSource()).getSelectedIndex();
-		File file = (File)model.get(index);
+		ListItem item = (ListItem)model.get(index);
+		File file = item.getFile();
 		
 		String html = "";
 		if (mainPanel.isSvgFile(file)) {

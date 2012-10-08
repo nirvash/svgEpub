@@ -10,17 +10,13 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-import javax.xml.namespace.QName;
-
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
@@ -28,7 +24,7 @@ import nl.siegmann.epublib.epub.EpubWriter;
 
 
 public class Epub {
-	private Enumeration<File> fileList;
+	private Enumeration<ListItem> fileList;
 	private String title;
 	private String author;
 	
@@ -49,7 +45,7 @@ public class Epub {
 		}		
 	}
 
-	private void createPages(Book book, Enumeration<File> list) throws IOException {
+	private void createPages(Book book, Enumeration<ListItem> list) throws IOException {
 		InputStream is = mainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
 		String template = convertInputStreamToString(is);
 		
@@ -58,7 +54,8 @@ public class Epub {
 		while (list.hasMoreElements()) {
 			String pageName = String.format("page_%04d", page);
 			String pageFile = pageName + ".xhtml";
-			File file = list.nextElement();
+			ListItem item = list.nextElement();
+			File file = item.getFile();
 			if (mainPanel.isSvgFile(file)) {
 				createSvgPage(book, template, pageName, pageFile, file);
 				page++;
@@ -195,7 +192,7 @@ public class Epub {
         return strs[strs.length - 1];
     }
 
-	public void setList(Enumeration<File> list) {
+	public void setList(Enumeration<ListItem> list) {
 		fileList = list;
 	}
 

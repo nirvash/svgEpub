@@ -359,7 +359,7 @@ public class SaveDialog extends JDialog implements ActionListener {
 		return currentPath;
 	}
 
-	public void setList(Enumeration<File> list) {
+	public void setList(Enumeration<ListItem> list) {
 		epubWriter.setList(list);		
 	}
 

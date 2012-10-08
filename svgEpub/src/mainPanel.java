@@ -1,5 +1,6 @@
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -156,7 +157,10 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.getSelectionModel().setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 		    jList0.setDropMode(DropMode.INSERT);
 		    jList0.setDragEnabled(true);
+		    jList0.setBackground(Color.WHITE);
+		    jList0.setSelectionBackground(new Color(200, 200, 255));
 		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getJEditorPane0(), getSvgCanvas(), fileListModel));
+		    jList0.addMouseListener(new ListMouseListener());
 		    
 		}
 		return jList0;
@@ -277,7 +281,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		} else if (e.getActionCommand().equals("Create")) {
 			DefaultListModel model = (DefaultListModel) jList0.getModel();
 			@SuppressWarnings("unchecked")
-			Enumeration<File> list = (Enumeration<File>) model.elements();
+			Enumeration<ListItem> list = (Enumeration<ListItem>) model.elements();
 
 			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true);
 			dialog.setLocationRelativeTo(this);
