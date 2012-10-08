@@ -11,7 +11,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
-import java.util.Enumeration;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,6 +20,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.swing.JFileChooser;
+import javax.swing.ProgressMonitor;
 
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
@@ -27,19 +28,36 @@ import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.epub.EpubWriter;
 
 
-public class Epub {
-	private Enumeration<ListItem> fileList;
+public class Epub extends Thread  {
+	private ArrayList<ListItem> fileList;
 	private String title;
 	private String author;
+	private String path;
+	private ProgressMonitor monitor;
+
+	@Override
+	public void run() {
+		createEpub(this.path, this.monitor);
+	}
 	
-	public void createEpub(String path) {
+	public void setPath(String path) {
+		this.path = path;
+	}
+	
+	public void setMonitor(ProgressMonitor monitor) {
+		this.monitor = monitor;
+	}
+	
+	private void createEpub(String path, ProgressMonitor monitor) {
 		try {
 			Book book = new Book();
 			book.getMetadata().addTitle(getTitle());
 			book.getMetadata().addAuthor(new Author(getAuthor(), ""));
 			book.getMetadata().setPageProgressionDirection("rtl");
 			book.getSpine().setPageProgressionDirection("rtl");
-			createPages(book, fileList);
+			if (!createPages(book, fileList, monitor)) {
+				return;
+			}
 			
 			EpubWriter epubWriter = new EpubWriter();
 			FileOutputStream out =  new FileOutputStream(path);
@@ -49,16 +67,20 @@ public class Epub {
 		}		
 	}
 
-	private void createPages(Book book, Enumeration<ListItem> list) throws IOException {
+	private boolean createPages(Book book, ArrayList<ListItem> list, ProgressMonitor monitor) throws IOException {
 		InputStream is = mainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
 		String template = convertInputStreamToString(is);
 		
 		int page = 1;
 
-		while (list.hasMoreElements()) {
+		for (ListItem item : fileList) {
+			monitor.setProgress(page-1);
+			if ( monitor.isCanceled() ) {
+				monitor.close();
+				return false;
+			}
 			String pageName = String.format("page_%04d", page);
 			String pageFile = pageName + ".xhtml";
-			ListItem item = list.nextElement();
 			File file = item.getFile();
 			if (mainPanel.isSvgFile(file)) {
 				createSvgPage(book, template, pageName, pageFile, file);
@@ -89,7 +111,8 @@ public class Epub {
 					page++;
 				}
 			}
-		}		
+		}	
+		return true;
 	}
 
 
@@ -120,7 +143,6 @@ public class Epub {
 	private File convertToPnm(File file) {
 		String pnmFile = file.getPath().replaceAll("\\.[^.]*$", ".pnm");
 		File mkbitmap = new File("thirdparty/mkbitmap.exe");
-		String p = mkbitmap.getAbsolutePath();
 		if (!mkbitmap.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -153,7 +175,6 @@ public class Epub {
 	private File convertToSvg(File file) {
 		String svgFile = file.getPath().replaceAll("\\.[^.]*$", ".svg");
 		File potrace = new File("thirdparty/potrace.exe");
-		String p = potrace.getAbsolutePath();
 		if (!potrace.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -313,7 +334,7 @@ public class Epub {
         return strs[strs.length - 1];
     }
 
-	public void setList(Enumeration<ListItem> list) {
+	public void setList(ArrayList<ListItem> list) {
 		fileList = list;
 	}
 
@@ -337,5 +358,10 @@ public class Epub {
 	
 	public void setAuthor(String author) {
 		this.author = author;
+	}
+
+	public int getTotalPage() {
+		if (fileList == null) return 0;
+		return fileList.size();
 	}
 }

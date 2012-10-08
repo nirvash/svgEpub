@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 
 import javax.swing.BoxLayout;
@@ -286,7 +288,8 @@ public class mainPanel extends JFrame implements ActionListener {
 		} else if (e.getActionCommand().equals("Create")) {
 			DefaultListModel model = (DefaultListModel) jList0.getModel();
 			@SuppressWarnings("unchecked")
-			Enumeration<ListItem> list = (Enumeration<ListItem>) model.elements();
+			Enumeration<ListItem> elist = (Enumeration<ListItem>) model.elements();
+			ArrayList<ListItem> list = (ArrayList<ListItem>) Collections.list(elist);
 
 			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true);
 			dialog.setLocationRelativeTo(this);

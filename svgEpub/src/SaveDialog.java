@@ -12,6 +12,7 @@ import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Enumeration;
 
 import javax.swing.BoxLayout;
@@ -22,6 +23,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
@@ -47,6 +49,7 @@ public class SaveDialog extends JDialog implements ActionListener {
 	private JLabel jLabel3;
 	private JTextField jTextField3;
 	private Epub epubWriter = new Epub();
+	private ProgressMonitor progress;
 	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
 	public SaveDialog(Window parent) {
 		super(parent);
@@ -334,15 +337,23 @@ public class SaveDialog extends JDialog implements ActionListener {
 		if (e.getActionCommand().equals("Cancel")) {
 			this.setVisible(false);
 		} else if (e.getActionCommand().equals("Save")) {
-			String path = jTextField0.getText() + "\\" + jTextField3.getText();
-			epubWriter.setTitle(jTextField1.getText());
-			epubWriter.setAuthor(jTextField2.getText());
-			epubWriter.createEpub(path);
-			this.setVisible(false);
+			save();
 		} else if (e.getActionCommand().equals("File")) {
 			String path = selectFilePath();
 			getJTextField0().setText(path);
 		}
+	}
+	
+	private void save() {
+		String path = jTextField0.getText() + "\\" + jTextField3.getText();
+		epubWriter.setTitle(jTextField1.getText());
+		epubWriter.setAuthor(jTextField2.getText());
+		epubWriter.setPath(path);
+		ProgressMonitor monitor = new ProgressMonitor(this, "Saving", "Generating epub file...", 0, epubWriter.getTotalPage());
+		monitor.setMillisToDecideToPopup(0);
+		monitor.setMillisToPopup(0);
+		epubWriter.setMonitor(monitor);
+		epubWriter.start();		
 	}
 
 	private String selectFilePath() {
@@ -359,7 +370,7 @@ public class SaveDialog extends JDialog implements ActionListener {
 		return currentPath;
 	}
 
-	public void setList(Enumeration<ListItem> list) {
+	public void setList(ArrayList<ListItem> list) {
 		epubWriter.setList(list);		
 	}
 
