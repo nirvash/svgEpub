@@ -17,7 +17,6 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JSeparator;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
@@ -33,27 +32,30 @@ import org.dyno.visual.swing.layouts.GroupLayout;
 public class mainPanel extends JFrame implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
-	private JMenuItem jMenuItem0;
-	private JMenu jMenu0;
 	private JMenuBar jMenuBar0;
+	private JMenu jMenu0;
+	private JMenuItem jMenuItem0;
+	
+	private JScrollPane jScrollPane1;
 	private JSplitPane jSplitPane1;
+
+	private JScrollPane jScrollPane0;
+	private JPanel jPanel4;
+	private CardLayout cardLayout;
+	private JEditorPane jEditorPane0;
+	private JSVGCanvas svgCanvas;
+
 	private JPanel jPanel1;
 	private JPanel jPanel2;
 	private JList jList0;
-	private JScrollPane jScrollPane1;
+	
 	private JButton jButton0;
 	private JButton jButton1;
-	private JEditorPane jEditorPane0;
-	private JScrollPane jScrollPane0;
-	private JSVGCanvas svgCanvas;
-	private JPanel jPanel4;
-	private CardLayout cardLayout;
+
+	private JPanel jPanelNorth;
 	private JButton jButton2;
-	private JSeparator jSeparator0;
+
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
-	
-	private Epub epubWriter = new Epub();
-	
 	public mainPanel() {
 		initComponents();
 	}
@@ -66,23 +68,6 @@ public class mainPanel extends JFrame implements ActionListener {
 	}
 
 	
-	private JSeparator getJSeparator0() {
-		if (jSeparator0 == null) {
-			jSeparator0 = new JSeparator();
-		}
-		return jSeparator0;
-	}
-
-	private JButton getJButton2() {
-		if (jButton2 == null) {
-			jButton2 = new JButton();
-			jButton2.setText("Create EPUB");
-			jButton2.setActionCommand("Create");
-			jButton2.addActionListener(this);
-		}
-		return jButton2;
-	}
-
 	private JSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
 			svgCanvas = new JSVGCanvas();
@@ -123,6 +108,17 @@ public class mainPanel extends JFrame implements ActionListener {
 		return jEditorPane0;
 	}
 
+	private JButton getJButton2() {
+		if (jButton2 == null) {
+			jButton2 = new JButton();
+			jButton2.setText("Create EPUB");
+			jButton2.setActionCommand("Create");
+			jButton2.addActionListener(this);
+		}
+		return jButton2;
+	}
+	
+
 	private JButton getJButton1() {
 		if (jButton1 == null) {
 			jButton1 = new JButton();
@@ -132,7 +128,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 		return jButton1;
 	}
-
+	
 	private JButton getJButton0() {
 		if (jButton0 == null) {
 			jButton0 = new JButton();
@@ -170,10 +166,20 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jPanel1 == null) {
 			jPanel1 = new JPanel();
 			jPanel1.setLayout(new BorderLayout());
+			jPanel1.add(getJPanelNorth(), BorderLayout.NORTH);
 			jPanel1.add(getJSplitPane1(), BorderLayout.CENTER);
 			jPanel1.add(getJPanel2(), BorderLayout.SOUTH);
 		}
 		return jPanel1;
+	}
+	
+	private JPanel getJPanelNorth() {
+		if (jPanelNorth == null) {
+			jPanelNorth = new JPanel();
+			jPanelNorth.setLayout(new BoxLayout(jPanelNorth, BoxLayout.X_AXIS));
+			jPanelNorth.add(getJButton2());
+		}
+		return jPanelNorth;
 	}
 
 	private JPanel getJPanel2() {
@@ -182,8 +188,6 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanel2.setLayout(new BoxLayout(jPanel2, BoxLayout.X_AXIS));
 			jPanel2.add(getJButton0());
 			jPanel2.add(getJButton1());
-			jPanel2.add(getJButton2());
-			jPanel2.add(getJSeparator0());
 		}
 		return jPanel2;
 	}
@@ -274,9 +278,14 @@ public class mainPanel extends JFrame implements ActionListener {
 			DefaultListModel model = (DefaultListModel) jList0.getModel();
 			@SuppressWarnings("unchecked")
 			Enumeration<File> list = (Enumeration<File>) model.elements();
-			epubWriter.createEpub(list);
+
+			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true);
+			dialog.setLocationRelativeTo(this);
+			dialog.setList(list);
+			dialog.setVisible(true);
 		}
 	}
+	
 	
 	static boolean canHandle(File file) {
 		return isSvgFile(file) || isImageFile(file);
