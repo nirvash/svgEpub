@@ -7,6 +7,11 @@ import javax.swing.JList;
 
 public class ListMouseListener implements MouseListener {
 	final int hotspot = new JCheckBox().getPreferredSize().width; 
+	private ItemSelectionListener itemSelectListener;
+	
+	public ListMouseListener(ItemSelectionListener itemSelectListener) {
+		this.itemSelectListener = itemSelectListener;
+	}
 	
 	@Override
 	public void mouseClicked(MouseEvent event) {
@@ -21,38 +26,36 @@ public class ListMouseListener implements MouseListener {
         if(event.getX() > list.getCellBounds(index, index).x + hotspot) {
             return; 
         }
-        
+               
 		ListItem item = (ListItem)list.getModel().getElementAt(index);
+		if (!item.enableSelect()) {
+			return;
+		}
 
 		// Toggle selected state
 		item.setSelected(!item.isSelected());
 
 		// Repaint cell
 		list.repaint(list.getCellBounds(index, index));		 
+		
+		// Update preview image
+		itemSelectListener.updatePreviewImage(index);
 	}
 
 	@Override
 	public void mouseEntered(MouseEvent event) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void mouseExited(MouseEvent event) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void mousePressed(MouseEvent event) {
-		// TODO Auto-generated method stub
-
 	}
 
 	@Override
 	public void mouseReleased(MouseEvent event) {
-		// TODO Auto-generated method stub
-
 	}
 
 }

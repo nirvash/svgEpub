@@ -358,7 +358,6 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	
 	private void save() {
 		String path = jTextField0.getText() + "\\" + jTextField3.getText();
-		epubWriter.setProperty(properties);
 		epubWriter.setTitle(jTextField1.getText());
 		epubWriter.setAuthor(jTextField2.getText());
 		epubWriter.setPath(path);

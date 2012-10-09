@@ -3,6 +3,7 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JPanel;
@@ -24,6 +26,9 @@ import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import javax.swing.event.ListSelectionListener;
 
 import org.apache.batik.swing.JSVGCanvas;
 
@@ -50,9 +55,12 @@ public class mainPanel extends JFrame implements ActionListener {
 
 	private JPanel jPanelNorth;
 	private JButton jButton2;
+	private JCheckBox jCheckBox0;
+	
+	private ItemSelectionListener itemSelectionListener;
+	
+	private static Properties properties = new Properties();
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
-
-	static private Properties properties = new Properties();
 	
 	static public Properties getProperty() {
 		return properties;
@@ -70,17 +78,36 @@ public class mainPanel extends JFrame implements ActionListener {
 			} else {
 				properties.loadFromXML(mainPanel.class.getResourceAsStream("config.xml"));
 			}
-		} catch (InvalidPropertiesFormatException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		
+		Epub.setProperty(properties);
 		
 		
 		add(getJPanel1());
 		setSize(640, 452);
+	}
+
+	private JCheckBox getJCheckBox0() {
+		if (jCheckBox0 == null) {
+			jCheckBox0 = new JCheckBox();
+			jCheckBox0.setText("Preview SVG output");
+			jCheckBox0.setSelected(true);
+			jCheckBox0.addChangeListener(new ChangeListener() {
+				@Override
+				public void stateChanged(ChangeEvent e) {
+					if (itemSelectionListener != null) {
+						itemSelectionListener.setEnabledPreview(jCheckBox0.isSelected());
+						if (jList0 != null) {
+							int index = jList0.getSelectedIndex();
+							itemSelectionListener.updatePreviewImage(index);
+						}
+					}
+				}
+			});
+		}
+		return jCheckBox0;
 	}
 
 	private JSVGCanvas getSvgCanvas() {
@@ -116,8 +143,6 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jScrollPane0 == null) {
 			jScrollPane0 = new JScrollPane();
 			jScrollPane0.setAutoscrolls(true);
-//			jScrollPane0.setViewportView(getImagePanel());
-//			getImagePanel().setParent(jScrollPane0);
 			jScrollPane0.setViewportView(getNavigableImagePanel());
 		}
 		return jScrollPane0;
@@ -182,11 +207,18 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.setDragEnabled(true);
 		    jList0.setBackground(Color.WHITE);
 		    jList0.setSelectionBackground(new Color(200, 200, 255));
-		    jList0.addListSelectionListener(new ItemSelectionListener(getCardLayout(), getJPanel4(), getNavigableImagePanel(), getSvgCanvas(), fileListModel));
-		    jList0.addMouseListener(new ListMouseListener());
+		    jList0.addListSelectionListener(getItemSelectionListener(fileListModel));
+		    jList0.addMouseListener(new ListMouseListener(getItemSelectionListener(fileListModel)));
 		    
 		}
 		return jList0;
+	}
+
+	private ItemSelectionListener getItemSelectionListener(DefaultListModel fileListModel) {
+		if (itemSelectionListener == null) {
+			itemSelectionListener = new ItemSelectionListener(getCardLayout(), getJPanel4(), getNavigableImagePanel(), getSvgCanvas(), fileListModel);
+		}
+		return itemSelectionListener;
 	}
 
 	private JPanel getJPanel1() {
@@ -205,6 +237,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanelNorth = new JPanel();
 			jPanelNorth.setLayout(new BoxLayout(jPanelNorth, BoxLayout.X_AXIS));
 			jPanelNorth.add(getJButton2());
+			jPanelNorth.add(getJCheckBox0());
 		}
 		return jPanelNorth;
 	}

@@ -51,36 +51,25 @@ public class FileRenderer extends JPanel implements ListCellRenderer {
 			fg = UIManager.getColor("List.dropCellForeground");
 			isSelected = true;
 		}
-		
+			
 		if (isSelected) {
 			setBackground(bg == null ? list.getSelectionBackground() : bg);
 			setForeground(fg == null ? list.getSelectionForeground() : fg);
-			/*
-			label.setBackground(bg == null ? list.getSelectionBackground() : bg);
-			label.setForeground(fg == null ? list.getSelectionForeground() : fg);
-			checkbox.setBackground(bg == null ? list.getSelectionBackground() : bg);
-			checkbox.setForeground(fg == null ? list.getSelectionForeground() : fg);
-			*/
 		}
 		else {
 			setBackground(list.getBackground());
 			setForeground(list.getForeground());
-			/*			
-			list.setBackground(list.getBackground());
-			list.setForeground(list.getForeground());
-			checkbox.setBackground(list.getBackground());
-			checkbox.setForeground(list.getForeground());
-*/
 		}
 		
 		checkbox.setSelected(item.isSelected());
-	    	
+		
 		setEnabled(list.isEnabled());
-		checkbox.setEnabled(list.isEnabled());
+		checkbox.setEnabled(item.enableSelect());
 		label.setEnabled(list.isEnabled());		
 
 		label.setFont(list.getFont());
-	    	
+
+		/*
 		Border border = null;
 		if (cellHasFocus) {
 			if (isSelected) {
@@ -93,6 +82,7 @@ public class FileRenderer extends JPanel implements ListCellRenderer {
 			border = getNoFocusBorder();
 		}
 		setBorder(border);
+		*/
 	    
 		label.setText(value.toString());
 		label.setIcon(FileSystemView.getFileSystemView().getSystemIcon(item.getFile()));

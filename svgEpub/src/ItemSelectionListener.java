@@ -20,6 +20,7 @@ public class ItemSelectionListener implements ListSelectionListener {
 	private JSVGCanvas svgCanvas;
 	private NavigableImagePanel imagePanel;
 	private DefaultListModel model = null;
+	private boolean enabledPreview = true;
 
 	public ItemSelectionListener(CardLayout layout, JPanel panel, NavigableImagePanel imagePanel, JSVGCanvas jsvgCanvas, DefaultListModel fileListModel) {
 		cardLayout = layout;
@@ -28,11 +29,20 @@ public class ItemSelectionListener implements ListSelectionListener {
 		svgCanvas = jsvgCanvas;
 		model = fileListModel;
 	}
+	
+	public void setEnabledPreview(boolean b) {
+		this.enabledPreview = b;
+	}
 
 	@Override
 	public void valueChanged(ListSelectionEvent e) {
 		if (e.getValueIsAdjusting()) return;
 		int index = ((JList)e.getSource()).getSelectedIndex();
+		
+		updatePreviewImage(index);
+	}
+
+	public void updatePreviewImage(int index) {
 		if (index < 0) {
 			cardLayout.first(parent);
 			imagePanel.setImage(null);
@@ -40,6 +50,19 @@ public class ItemSelectionListener implements ListSelectionListener {
 		}
 		ListItem item = (ListItem)model.get(index);
 		File file = item.getFile();
+		
+		if (enabledPreview && mainPanel.isImageFile(file) && item.isSelected()) {
+			if (item.getSvgFile() != null) {
+				file = item.getSvgFile();
+			} else {
+				File svgFile = Epub.convertToSvgFromImage(file);
+				if (svgFile != null) {
+					item.setSvgFile(svgFile);
+					file = svgFile;
+				}
+			}
+		}
+
 		
 		if (mainPanel.isSvgFile(file)) {
 			cardLayout.last(parent);

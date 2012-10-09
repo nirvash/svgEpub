@@ -36,7 +36,7 @@ public class Epub extends Thread  {
 	private String author;
 	private String path;
 	private ProgressMonitor monitor;
-	private Properties properties;
+	static private Properties properties;
 
 	@Override
 	public void run() {
@@ -51,8 +51,8 @@ public class Epub extends Thread  {
 		this.monitor = monitor;
 	}
 	
-	public void setProperty(Properties properties) {
-		this.properties = properties;
+	static public void setProperty(Properties properties) {
+		Epub.properties = properties;
 	}
 	
 	private void createEpub(String path, ProgressMonitor monitor) {
@@ -95,26 +95,10 @@ public class Epub extends Thread  {
 				page++;
 			} else if (mainPanel.isImageFile(file)) {
 				if (item.isSelected()) {
-					File bitmapFile = null;
-					File pnmFile = null;
-					try {
-						bitmapFile = convertToBitmap(file);
-						if (bitmapFile == null || !bitmapFile.exists()) continue;
-						
-						pnmFile = convertToPnm(bitmapFile);
-						if (pnmFile == null || !pnmFile.exists()) continue;
-						
-						File svgFile = convertToSvg(pnmFile);
-						if (svgFile != null) {
-							createSvgPage(book, template, pageName, pageFile, svgFile);
-							page++;
-						}
-					} finally {
-						if (!StringUtil.equals("yes", properties.getProperty("debug"))) {
-							if (bitmapFile != null) bitmapFile.delete();
-							if (pnmFile != null) pnmFile.delete();
-						}
-						
+					File svgFile = convertToSvgFromImage(file);
+					if (svgFile != null) {
+						createSvgPage(book, template, pageName, pageFile, svgFile);
+						page++;
 					}
 				} else {
 					createImagePage(book, template, pageName, pageFile, file);
@@ -124,10 +108,29 @@ public class Epub extends Thread  {
 		}	
 		return true;
 	}
+	
+	static public File convertToSvgFromImage(File imageFile) {
+		File bitmapFile = null;
+		File pnmFile = null;
+		try {
+			bitmapFile = convertToBitmap(imageFile);
+			if (bitmapFile == null || !bitmapFile.exists()) return null;
+			
+			pnmFile = convertToPnm(bitmapFile);
+			if (pnmFile == null || !pnmFile.exists()) return null;
+		
+			return convertToSvg(pnmFile);
+		} finally {
+			if (!StringUtil.equals("yes", properties.getProperty("debug"))) {
+				if (bitmapFile != null) bitmapFile.delete();
+				if (pnmFile != null) pnmFile.delete();
+			}
+		}
+	}
 
 
-	private File convertToBitmap(File file) {
-		String path = file.getParent() + "\\tmp\\";
+	static private File convertToBitmap(File file) {
+		String path = getTmpDirectory();
 		String outFilename = path + file.getName();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");		
 		try {
@@ -135,8 +138,6 @@ public class Epub extends Thread  {
 			BufferedImage image = ImageIO.read(in);
 			in.close();
 						
-			File dir = new File(path);
-			dir.mkdirs();
 			OutputStream out = new FileOutputStream(outFilename);
 			ImageIO.write(image, "bmp", out);
 			out.close();
@@ -148,10 +149,21 @@ public class Epub extends Thread  {
 	}
 	
 
-	private File convertToPnm(File file) {
-		String pnmFile = file.getPath().replaceAll("\\.[^.]*$", ".pnm");
+	static private String getTmpDirectory() {
+		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
+		File tmp = new File(path);
+		if (!tmp.exists()) {
+			tmp.mkdirs();
+		}
+		return path;
+	}
+
+	static private File convertToPnm(File file) {
+		String path = getTmpDirectory();
+		String pnmFile = path + file.getName();
+		pnmFile = pnmFile.replaceAll("\\.[^.]*$", ".pnm");
 		File mkbitmap = getMkbitmapFile();
-		if (!mkbitmap.exists()) {
+		if (mkbitmap == null || !mkbitmap.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			int ret = c.showOpenDialog(null);
@@ -174,20 +186,26 @@ public class Epub extends Thread  {
 		return new File(pnmFile);
 	}
 	
-	private File getMkbitmapFile() {
-		if(System.getenv("ProgramFiles(x86)") != null) {
-			return new File(properties.getProperty("mkbitmap_path_win64"));
-		}
-		else {
-			return new File(properties.getProperty("mkbitmap_path_win32"));			
+	static private File getMkbitmapFile() {
+		try {
+			if(System.getenv("ProgramFiles(x86)") != null) {
+				return new File(properties.getProperty("mkbitmap_path_win64"));
+			}
+			else {
+				return new File(properties.getProperty("mkbitmap_path_win32"));			
+			}
+		} catch (Exception e) {
+			return null;
 		}
 	}
 
 
-	private File convertToSvg(File file) {
-		String svgFile = file.getPath().replaceAll("\\.[^.]*$", ".svg");
+	static private File convertToSvg(File file) {
+		String path = getTmpDirectory();		
+		String svgFile = path + file.getName();
+		svgFile = svgFile.replaceAll("\\.[^.]*$", ".svg");
 		File potrace = getPotraceFile();
-		if (!potrace.exists()) {
+		if (potrace == null || !potrace.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
 			int ret = c.showOpenDialog(null);
@@ -210,12 +228,16 @@ public class Epub extends Thread  {
 		return new File(svgFile);
 	}
 
-	private File getPotraceFile() {
-		if(System.getenv("ProgramFiles(x86)") != null) {
-			return new File(properties.getProperty("potrace_path_win64"));
-		}
-		else {
-			return new File(properties.getProperty("potrace_path_win32"));			
+	static private File getPotraceFile() {
+		try {
+			if(System.getenv("ProgramFiles(x86)") != null) {
+				return new File(properties.getProperty("potrace_path_win64"));
+			}
+			else {
+				return new File(properties.getProperty("potrace_path_win32"));			
+			}
+		} catch (Exception e) {
+			return null;
 		}
 	}
 
