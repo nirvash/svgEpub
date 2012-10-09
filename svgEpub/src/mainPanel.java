@@ -4,9 +4,13 @@ import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.InvalidPropertiesFormatException;
+import java.util.Properties;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -22,9 +26,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import org.apache.batik.swing.JSVGCanvas;
-import org.dyno.visual.swing.layouts.Bilateral;
-import org.dyno.visual.swing.layouts.Constraints;
-import org.dyno.visual.swing.layouts.GroupLayout;
 
 
 //VS4E -- DO NOT REMOVE THIS LINE!
@@ -37,7 +38,6 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JScrollPane jScrollPane0;
 	private JPanel jPanel4;
 	private CardLayout cardLayout;
-	private ImagePanel imagePanel;
 	private NavigableImagePanel naviImagePanel;
 	private JSVGCanvas svgCanvas;
 
@@ -52,13 +52,34 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JButton jButton2;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 
+	static private Properties properties = new Properties();
+	
+	static public Properties getProperty() {
+		return properties;
+	}
+	
 	public mainPanel() {
 		initComponents();
 	}
 
 	private void initComponents() {
-		setLayout(new GroupLayout());
-		add(getJPanel1(), new Constraints(new Bilateral(0, 0, 0), new Bilateral(0, 0, 0)));
+		try {
+			File config = new File("config.xml");
+			if (config.exists()) {
+				properties.loadFromXML(new FileInputStream(config));
+			} else {
+				properties.loadFromXML(mainPanel.class.getResourceAsStream("config.xml"));
+			}
+		} catch (InvalidPropertiesFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		add(getJPanel1());
 		setSize(640, 452);
 	}
 
@@ -110,12 +131,6 @@ public class mainPanel extends JFrame implements ActionListener {
 		return naviImagePanel;
 	}
 	
-	private ImagePanel getImagePanel() {
-		if (imagePanel == null) {
-			imagePanel = new ImagePanel();
-		}
-		return imagePanel;
-	}
 
 	private JButton getJButton2() {
 		if (jButton2 == null) {
@@ -238,7 +253,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			public void run() {
 				mainPanel frame = new mainPanel();
 				frame.setDefaultCloseOperation(mainPanel.EXIT_ON_CLOSE);
-				frame.setTitle("mainPanel");
+				frame.setTitle("svgEpub");
 				frame.getContentPane().setPreferredSize(frame.getSize());
 				frame.pack();
 				frame.setLocationRelativeTo(null);
@@ -267,7 +282,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			Enumeration<ListItem> elist = (Enumeration<ListItem>) model.elements();
 			ArrayList<ListItem> list = (ArrayList<ListItem>) Collections.list(elist);
 
-			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true);
+			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true, properties);
 			dialog.setLocationRelativeTo(this);
 			dialog.setList(list);
 			dialog.setVisible(true);

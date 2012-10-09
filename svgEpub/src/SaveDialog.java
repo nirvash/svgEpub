@@ -11,9 +11,12 @@ import java.awt.Insets;
 import java.awt.Window;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ComponentEvent;
+import java.awt.event.ComponentListener;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Enumeration;
+import java.util.Properties;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -27,11 +30,11 @@ import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-import org.dyno.visual.swing.layouts.GroupLayout;
+import nl.siegmann.epublib.util.StringUtil;
 
 
 //VS4E -- DO NOT REMOVE THIS LINE!
-public class SaveDialog extends JDialog implements ActionListener {
+public class SaveDialog extends JDialog implements ActionListener, ComponentListener {
 
 	private static final long serialVersionUID = 1L;
 	private JButton jButton0;
@@ -49,16 +52,19 @@ public class SaveDialog extends JDialog implements ActionListener {
 	private JLabel jLabel3;
 	private JTextField jTextField3;
 	private Epub epubWriter = new Epub();
-	private ProgressMonitor progress;
 	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
+	
+	private Properties properties;
+	
 	public SaveDialog(Window parent) {
 		super(parent);
 		initComponents();
 	}
 
-	public SaveDialog(Dialog parent, String title, boolean modal,
-			GraphicsConfiguration arg) {
-		super(parent, title, modal, arg);
+	public SaveDialog(mainPanel mainPanel, String title, boolean modal,
+			Properties properties) {
+		super(mainPanel, title, modal);
+		this.properties = properties;
 		initComponents();
 	}
 
@@ -140,6 +146,7 @@ public class SaveDialog extends JDialog implements ActionListener {
 		add(getJPanel0(), BorderLayout.SOUTH);
 		add(getJPanel2(), BorderLayout.CENTER);
 		setSize(475, 221);
+		addComponentListener(this);
 	}
 
 	private JTextField getJTextField3() {
@@ -210,7 +217,15 @@ public class SaveDialog extends JDialog implements ActionListener {
 
 	private JTextField getJTextField0() {
 		if (jTextField0 == null) {
-			String dir = (new JFileChooser()).getCurrentDirectory().getPath();
+			String dir = "";
+			try {
+				dir = properties.getProperty("savePath");
+			} catch (Exception e) {
+				// NOP
+			}
+			if (!StringUtil.isNotBlank(dir)) {
+				dir = (new JFileChooser()).getCurrentDirectory().getPath();
+			}
 			jTextField0 = new JTextField(dir);
 			jTextField0.setMinimumSize(new Dimension(4, 30));
 			jTextField0.setPreferredSize(new Dimension(63, 30));
@@ -261,7 +276,6 @@ public class SaveDialog extends JDialog implements ActionListener {
 	private JPanel getJPanel1() {
 		if (jPanel1 == null) {
 			jPanel1 = new JPanel();
-			jPanel1.setLayout(new GroupLayout());
 		}
 		return jPanel1;
 	}
@@ -329,8 +343,6 @@ public class SaveDialog extends JDialog implements ActionListener {
 		});
 	}
 
-	public void setMainPanel(mainPanel mainPanel) {
-	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
@@ -346,6 +358,7 @@ public class SaveDialog extends JDialog implements ActionListener {
 	
 	private void save() {
 		String path = jTextField0.getText() + "\\" + jTextField3.getText();
+		epubWriter.setProperty(properties);
 		epubWriter.setTitle(jTextField1.getText());
 		epubWriter.setAuthor(jTextField2.getText());
 		epubWriter.setPath(path);
@@ -372,6 +385,37 @@ public class SaveDialog extends JDialog implements ActionListener {
 
 	public void setList(ArrayList<ListItem> list) {
 		epubWriter.setList(list);		
+	}
+
+	@Override
+	public void componentHidden(ComponentEvent arg0) {
+		properties.setProperty("savePath", jTextField0.getText());
+		FileOutputStream os;
+		try {
+			os = new FileOutputStream("config.xml");
+			properties.storeToXML(os, null, "UTF-8");
+			os.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void componentMoved(ComponentEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void componentResized(ComponentEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void componentShown(ComponentEvent arg0) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

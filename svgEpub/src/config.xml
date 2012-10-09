@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Configuration File</comment>
+
+<entry key="debug">yes</entry><!-- yes or no -->
+
+<entry key="potrace_path_win32">thirdparty/potrace/win32/potrace.exe</entry>
+<entry key="mkbitmap_path_win32">thirdparty/potrace/win32/mkbitmap.exe</entry>
+
+<entry key="potrace_path_win64">thirdparty/potrace/win64/potrace.exe</entry>
+<entry key="mkbitmap_path_win64">thirdparty/potrace/win64/mkbitmap.exe</entry>
+
+<entry key="mkbitmap_option">-x -s 2 -f 2 -b 2 -3 -t 0.5</entry>
+<entry key="mkbitmap_option_sample">-x -s 2 -f 4 -b 1 -1 -t 0.5</entry>
+
+<entry key="potrace_option">-s -u 7 -a 0</entry>
+<entry key="potrace_option_sample">-s -u 9 -a 0 --tight</entry>
+  
+<entry key="pageProgressionDirection">rtl</entry> <!-- rtl or ltr -->
+<entry key="savePath"></entry>
+</properties>

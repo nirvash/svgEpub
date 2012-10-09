@@ -13,6 +13,7 @@ import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,7 @@ import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.epub.EpubWriter;
+import nl.siegmann.epublib.util.StringUtil;
 
 
 public class Epub extends Thread  {
@@ -34,6 +36,7 @@ public class Epub extends Thread  {
 	private String author;
 	private String path;
 	private ProgressMonitor monitor;
+	private Properties properties;
 
 	@Override
 	public void run() {
@@ -48,13 +51,17 @@ public class Epub extends Thread  {
 		this.monitor = monitor;
 	}
 	
+	public void setProperty(Properties properties) {
+		this.properties = properties;
+	}
+	
 	private void createEpub(String path, ProgressMonitor monitor) {
 		try {
 			Book book = new Book();
 			book.getMetadata().addTitle(getTitle());
 			book.getMetadata().addAuthor(new Author(getAuthor(), ""));
-			book.getMetadata().setPageProgressionDirection("rtl");
-			book.getSpine().setPageProgressionDirection("rtl");
+			book.getMetadata().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
+			book.getSpine().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			if (!createPages(book, fileList, monitor)) {
 				return;
 			}
@@ -62,6 +69,7 @@ public class Epub extends Thread  {
 			EpubWriter epubWriter = new EpubWriter();
 			FileOutputStream out =  new FileOutputStream(path);
 			epubWriter.write(book, out);
+			monitor.setProgress(monitor.getMaximum());
 		} catch (Exception e) {
 			e.printStackTrace();
 		}		
@@ -102,8 +110,10 @@ public class Epub extends Thread  {
 							page++;
 						}
 					} finally {
-//						if (bitmapFile != null) bitmapFile.delete();
-//						if (pnmFile != null) pnmFile.delete();
+						if (!StringUtil.equals("yes", properties.getProperty("debug"))) {
+							if (bitmapFile != null) bitmapFile.delete();
+							if (pnmFile != null) pnmFile.delete();
+						}
 						
 					}
 				} else {
@@ -124,9 +134,7 @@ public class Epub extends Thread  {
 			FileInputStream in = new FileInputStream(file);
 			BufferedImage image = ImageIO.read(in);
 			in.close();
-			
-//			BufferedImage binalized = BilevelUtil.binarize(image);
-			
+						
 			File dir = new File(path);
 			dir.mkdirs();
 			OutputStream out = new FileOutputStream(outFilename);
@@ -142,7 +150,7 @@ public class Epub extends Thread  {
 
 	private File convertToPnm(File file) {
 		String pnmFile = file.getPath().replaceAll("\\.[^.]*$", ".pnm");
-		File mkbitmap = new File("thirdparty/mkbitmap.exe");
+		File mkbitmap = getMkbitmapFile();
 		if (!mkbitmap.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -154,27 +162,31 @@ public class Epub extends Thread  {
 			}
 		}
 
-		// 				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 4 -b 1 -1 -t 0.5", 
-
 		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -x -s 2 -f 2 -b 2 -1 -t 0.5", 
+				"\"%s\" \"%s\" -o \"%s\" " + properties.getProperty("mkbitmap_option"), 
 				mkbitmap.getPath(), file.getPath(), pnmFile
 				);
 		try {
 			RuntimeUtility.execute(command);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return new File(pnmFile);
 	}
+	
+	private File getMkbitmapFile() {
+		if(System.getenv("ProgramFiles(x86)") != null) {
+			return new File(properties.getProperty("mkbitmap_path_win64"));
+		}
+		else {
+			return new File(properties.getProperty("mkbitmap_path_win32"));			
+		}
+	}
+
 
 	private File convertToSvg(File file) {
 		String svgFile = file.getPath().replaceAll("\\.[^.]*$", ".svg");
-		File potrace = new File("thirdparty/potrace.exe");
+		File potrace = getPotraceFile();
 		if (!potrace.exists()) {
 			JFileChooser c = new JFileChooser();
 			c.setFileSelectionMode(JFileChooser.FILES_ONLY);
@@ -185,22 +197,26 @@ public class Epub extends Thread  {
 				return null;
 			}
 		}
-//				"\"%s\" \"%s\" -o \"%s\" -s -r 167 --tight", 
 		
 		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -s -u 7 -a 0", 
+				"\"%s\" \"%s\" -o \"%s\" " + properties.getProperty("potrace_option"), 
 				potrace.getPath(), file.getPath(), svgFile
 				);
 		try {
 			RuntimeUtility.execute(command);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return new File(svgFile);
+	}
+
+	private File getPotraceFile() {
+		if(System.getenv("ProgramFiles(x86)") != null) {
+			return new File(properties.getProperty("potrace_path_win64"));
+		}
+		else {
+			return new File(properties.getProperty("potrace_path_win32"));			
+		}
 	}
 
 	private void createImagePage(Book book, String template, String pageName,
@@ -248,7 +264,6 @@ public class Epub extends Thread  {
 	    	String imageFile = "images/" + pageName + "." + extension;
         
 			String svg = readFile(file);
-//			svg = svg.replaceAll("((<\\?xml.*>)|(<!DOCTYPE((.|\n|\r)*?)\">))", "");
 
 			int width = 584;
 			int height = 754;
@@ -264,10 +279,6 @@ public class Epub extends Thread  {
 			if (mh.find()) {
 				height = Integer.parseInt(mh.group(3));
 			}
-/*			
-			svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
-			svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
-*/			
 
 	    	String tag = String.format("<svg version=\"1.1\" " +
 	    			"xmlns=\"http://www.w3.org/2000/svg\" " +
@@ -281,8 +292,6 @@ public class Epub extends Thread  {
 			book.addSection(pageName, new Resource(bi, pageFile));
 			bi.close();
 
-//			ByteArrayInputStream bsvg = new ByteArrayInputStream(svg.getBytes("UTF-8"));
-//			book.getResources().add(new Resource(bsvg, imageFile));
 			FileInputStream stream = new FileInputStream(file);	    	
 			book.getResources().add(new Resource(stream, imageFile));
 			stream.close();
@@ -291,19 +300,6 @@ public class Epub extends Thread  {
 		}
 	}
 
-	@SuppressWarnings("unused")
-	private void createSvgPage2(Book book, String template, String pageName,
-			String pageFile, File file) throws IOException,
-			UnsupportedEncodingException {
-		String svg = readFile(file);
-		svg = svg.replaceAll("((<\\?xml.*>)|(<!DOCTYPE((.|\n|\r)*?)\">))", "");
-		svg = svg.replaceFirst("(<svg(.|\n|\r)*?width=\")(.*?)(\".*)", "$1100%$4");
-		svg = svg.replaceFirst("(<svg(.|\n|\r)*?height=\")(.*?)(\".*)", "$1100%$4");
-		String html = template.replaceAll("%%BODY%%", svg);
-		ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
-		book.addSection(pageName, new Resource(bi, pageFile));
-		bi.close();
-	}
 
     static String convertInputStreamToString(InputStream is) throws IOException {
         InputStreamReader reader = new InputStreamReader(is);
