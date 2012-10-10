@@ -1,6 +1,7 @@
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -10,6 +11,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Properties;
 
+import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
@@ -25,6 +27,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
 import org.apache.batik.swing.JSVGCanvas;
 
 
@@ -43,6 +46,7 @@ public class mainPanel extends JFrame implements ActionListener {
 
 	private JPanel jPanel1;
 	private JPanel jPanel2;
+	private JPanel jPanel5;
 	private JList jList0;
 	
 	private JButton jButton0;
@@ -53,12 +57,11 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JCheckBox jCheckBox0;
 	
 	private SaveDialog saveDialog;
-	
 	private ItemSelectionListener itemSelectionListener;
 	
 	private static Properties properties = new Properties();
+	private JButton jButton3;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
-	
 	static public Properties getProperty() {
 		return properties;
 	}
@@ -79,12 +82,21 @@ public class mainPanel extends JFrame implements ActionListener {
 			e.printStackTrace();
 		}
 		
-		Epub.setProperty(properties);		
-		saveDialog = new SaveDialog(this , "Save EPUB" , true, properties);
+		Epub.setProperty(properties);
 		
 		add(getJPanel1());
 		
 		setSize(640, 452);
+	}
+
+	private JButton getJButton3() {
+		if (jButton3 == null) {
+			jButton3 = new JButton();
+			jButton3.setText("Config");
+			jButton3.setActionCommand("Config");
+			jButton3.addActionListener(this);
+		}
+		return jButton3;
 	}
 
 	private JCheckBox getJCheckBox0() {
@@ -172,6 +184,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			jButton1.setText("Clear");
 			jButton1.setActionCommand("Clear");
 			jButton1.addActionListener(this);
+//			jButton1.setToolTipText("Clear all images");
 		}
 		return jButton1;
 	}
@@ -182,6 +195,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			jButton0.setText("Remove");
 			jButton0.setActionCommand("Remove");
 			jButton0.addActionListener(this);
+//			jButton0.setToolTipText("Remove selected images");
 		}
 		return jButton0;
 	}
@@ -207,7 +221,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.setSelectionBackground(new Color(200, 200, 255));
 		    jList0.addListSelectionListener(getItemSelectionListener(fileListModel));
 		    jList0.addMouseListener(new ListMouseListener(getItemSelectionListener(fileListModel)));
-		    
+//		    jList0.setToolTipText("Drop image files here");
 		}
 		return jList0;
 	}
@@ -225,7 +239,6 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanel1.setLayout(new BorderLayout());
 			jPanel1.add(getJPanelNorth(), BorderLayout.NORTH);
 			jPanel1.add(getJSplitPane1(), BorderLayout.CENTER);
-			jPanel1.add(getJPanel2(), BorderLayout.SOUTH);
 		}
 		return jPanel1;
 	}
@@ -236,6 +249,8 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanelNorth.setLayout(new BoxLayout(jPanelNorth, BoxLayout.X_AXIS));
 			jPanelNorth.add(getJButton2());
 			jPanelNorth.add(getJCheckBox0());
+			jPanelNorth.add(Box.createHorizontalGlue());
+			jPanelNorth.add(getJButton3());
 		}
 		return jPanelNorth;
 	}
@@ -243,7 +258,6 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel getJPanel2() {
 		if (jPanel2 == null) {
 			jPanel2 = new JPanel();
-			jPanel2.setLayout(new BoxLayout(jPanel2, BoxLayout.X_AXIS));
 			jPanel2.add(getJButton0());
 			jPanel2.add(getJButton1());
 		}
@@ -255,10 +269,20 @@ public class mainPanel extends JFrame implements ActionListener {
 			jSplitPane1 = new JSplitPane();
 			jSplitPane1.setDividerLocation(263);
 			jSplitPane1.setDividerSize(5);
-			jSplitPane1.setLeftComponent(getJScrollPane1());
+			jSplitPane1.setLeftComponent(geJPanel5());
 			jSplitPane1.setRightComponent(getJPanel4());
 		}
 		return jSplitPane1;
+	}
+
+	private Component geJPanel5() {
+		if (jPanel5 == null) {
+			jPanel5 = new JPanel();
+			jPanel5.setLayout(new BorderLayout());
+			jPanel5.add(getJScrollPane1());
+			jPanel5.add(getJPanel2(), BorderLayout.SOUTH);
+		}
+		return jPanel5;
 	}
 
 	private static void installLnF() {
@@ -313,10 +337,17 @@ public class mainPanel extends JFrame implements ActionListener {
 			Enumeration<ListItem> elist = (Enumeration<ListItem>) model.elements();
 			ArrayList<ListItem> list = (ArrayList<ListItem>) Collections.list(elist);
 
-			saveDialog.setLocationRelativeTo(this);
-			saveDialog.setList(list);
-			saveDialog.setVisible(true);
+			getSaveDialog().setLocationRelativeTo(this);
+			getSaveDialog().setList(list);
+			getSaveDialog().setVisible(true);
 		}
+	}
+	
+	private SaveDialog getSaveDialog() {
+		if (saveDialog == null) {
+			saveDialog = new SaveDialog(this , "Save EPUB" , true, properties);
+		}
+		return saveDialog;
 	}
 	
 	
@@ -326,14 +357,19 @@ public class mainPanel extends JFrame implements ActionListener {
 
 
 	static boolean isSvgFile(File file) {
-		return file.isFile() && file.canRead() && file.getPath().endsWith(".svg");
+		return file.isFile() && file.canRead() && hasExtension(file, ".svg");
 	}
 	
+	private static boolean hasExtension(File file, String ext) {
+		return file.getName().toLowerCase().endsWith(ext);
+	}
+
 	static boolean isImageFile(File file) {
 		return file.isFile() && file.canRead() && 
-				(file.getPath().endsWith(".jpg") ||
-				 file.getPath().endsWith(".gif") ||
-				 file.getPath().endsWith(".png"));
+				(hasExtension(file, ".jpg") ||
+				 hasExtension(file, ".jpeg") ||
+			     hasExtension(file, ".gif") ||
+			     hasExtension(file, ".png"));
 	}
 
 	
