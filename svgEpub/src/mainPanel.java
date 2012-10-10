@@ -57,12 +57,14 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JCheckBox jCheckBox0;
 	
 	private SaveDialog saveDialog;
+	private ConfigDialog configDialog;
+	
 	private ItemSelectionListener itemSelectionListener;
 	
-	private static Properties properties = new Properties();
+	private static CustomProperties properties = new CustomProperties();
 	private JButton jButton3;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
-	static public Properties getProperty() {
+	static public CustomProperties getProperty() {
 		return properties;
 	}
 	
@@ -340,6 +342,10 @@ public class mainPanel extends JFrame implements ActionListener {
 			getSaveDialog().setLocationRelativeTo(this);
 			getSaveDialog().setList(list);
 			getSaveDialog().setVisible(true);
+		} else if (e.getActionCommand().equals("Config")) {
+			getConfigDialog().setMainPanel(this);
+			getConfigDialog().setLocationRelativeTo(this);
+			getConfigDialog().setVisible(true);
 		}
 	}
 	
@@ -350,6 +356,12 @@ public class mainPanel extends JFrame implements ActionListener {
 		return saveDialog;
 	}
 	
+	private ConfigDialog getConfigDialog() {
+		if (configDialog == null) {
+			configDialog = new ConfigDialog(this, "Config", true, properties);
+		}
+		return configDialog;
+	}
 	
 	static boolean canHandle(File file) {
 		return isSvgFile(file) || isImageFile(file);
@@ -370,6 +382,21 @@ public class mainPanel extends JFrame implements ActionListener {
 				 hasExtension(file, ".jpeg") ||
 			     hasExtension(file, ".gif") ||
 			     hasExtension(file, ".png"));
+	}
+
+	public void updateConfig() {
+		DefaultListModel model = (DefaultListModel) jList0.getModel();
+		@SuppressWarnings("unchecked")
+		Enumeration<ListItem> elist = (Enumeration<ListItem>) model.elements();
+		ArrayList<ListItem> list = (ArrayList<ListItem>) Collections.list(elist);
+		for (ListItem item : list) {
+			item.setSvgFile(null);
+		}
+
+		if (itemSelectionListener != null) {
+			itemSelectionListener.updatePreviewImage(getJList0().getSelectedIndex());
+		}
+			
 	}
 
 	

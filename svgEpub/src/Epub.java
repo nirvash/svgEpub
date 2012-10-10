@@ -37,7 +37,7 @@ public class Epub extends Thread  {
 	private String path;
 	private String outputFilename;
 	private ProgressMonitor monitor;
-	static private Properties properties;
+	static private CustomProperties properties;
 
 	@Override
 	public void run() {
@@ -52,7 +52,7 @@ public class Epub extends Thread  {
 		this.monitor = monitor;
 	}
 	
-	static public void setProperty(Properties properties) {
+	static public void setProperty(CustomProperties properties) {
 		Epub.properties = properties;
 	}
 	

@@ -54,7 +54,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private Epub epubWriter = new Epub();
 	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
 	
-	private Properties properties;
+	private CustomProperties properties;
 	
 	public SaveDialog(Window parent) {
 		super(parent);
@@ -62,7 +62,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	}
 
 	public SaveDialog(mainPanel mainPanel, String title, boolean modal,
-			Properties properties) {
+			CustomProperties properties) {
 		super(mainPanel, title, modal);
 		this.properties = properties;
 		initComponents();
@@ -409,7 +409,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	@Override
 	public void componentHidden(ComponentEvent arg0) {
 		properties.setProperty("savePath", jTextField0.getText());
-		FileOutputStream os;
+		FileOutputStream os = null;
 		try {
 			os = new FileOutputStream("config.xml");
 			properties.storeToXML(os, null, "UTF-8");
