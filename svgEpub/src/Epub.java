@@ -35,6 +35,7 @@ public class Epub extends Thread  {
 	private String title;
 	private String author;
 	private String path;
+	private String outputFilename;
 	private ProgressMonitor monitor;
 	static private Properties properties;
 
@@ -358,7 +359,7 @@ public class Epub extends Thread  {
 
 	public String getTitle() {
 		if (title == null || title.length() == 0) {
-			return "untitled";
+			return "";
 		}
 		return title;
 	}
@@ -369,7 +370,7 @@ public class Epub extends Thread  {
 	
 	public String getAuthor() {
 		if (author == null || author.length() == 0) {
-			return "unknown";
+			return "";
 		}
 		return author;
 	}
@@ -381,5 +382,72 @@ public class Epub extends Thread  {
 	public int getTotalPage() {
 		if (fileList == null) return 0;
 		return fileList.size();
+	}
+
+	public String getOutputFilename() {
+		return this.outputFilename;
+	}
+
+	public void analyzerTitleAndPath() {
+		this.title = "";
+		this.author = "";
+		this.outputFilename = "foobar.epub";
+		
+		if (fileList.isEmpty()) {
+			return;
+		}
+		
+		File dir = fileList.get(0).getFile().getParentFile();
+		if (dir == null) {
+			return;
+		}
+	
+		String dirName = dir.getName();
+		this.outputFilename = dirName + ".epub";
+		int titleGroup = 0;
+		int authorGroup = 0;
+		try {
+			String regex1 = properties.getProperty("title_author_regex_1");
+			if (StringUtil.isNotBlank(properties.getProperty("title_capturing_group_1"))) {
+				titleGroup = Integer.parseInt(properties.getProperty("title_capturing_group_1"));
+			}
+			if (StringUtil.isNotBlank(properties.getProperty("author_capturing_group_1"))) {
+				authorGroup = Integer.parseInt(properties.getProperty("author_capturing_group_1"));
+			}
+			Pattern p1 = Pattern.compile(regex1);
+			Matcher m1 = p1.matcher(dirName);
+			if (m1.find() && m1.groupCount() >= Math.max(titleGroup, authorGroup)) {
+				if (titleGroup > 0) {
+					this.title = m1.group(titleGroup);
+				}
+				if (authorGroup > 0) {
+					this.author = m1.group(authorGroup);
+				}
+				return;
+			}
+			
+			String regex2 = properties.getProperty("title_author_regex_2");
+			titleGroup = 0;
+			authorGroup = 0;
+			if (StringUtil.isNotBlank(properties.getProperty("title_capturing_group_2"))) {
+				titleGroup = Integer.parseInt(properties.getProperty("title_capturing_group_2"));
+			}
+			if (StringUtil.isNotBlank(properties.getProperty("author_capturing_group_2"))) {
+				authorGroup = Integer.parseInt(properties.getProperty("author_capturing_group_2"));
+			}
+			Pattern p2 = Pattern.compile(regex2);
+			Matcher m2 = p2.matcher(dirName);
+			if (m2.find() && m2.groupCount() >= Math.max(titleGroup, authorGroup)) {
+				if (titleGroup > 0) {
+					this.title = m2.group(titleGroup);
+				}
+				if (authorGroup > 0) {
+					this.author = m2.group(authorGroup);
+				}
+				return;
+			}
+		} catch (Exception e) {
+			this.title = dirName;
+		}		
 	}
 }

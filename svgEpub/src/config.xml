@@ -19,4 +19,13 @@
   
 <entry key="pageProgressionDirection">rtl</entry> <!-- rtl or ltr -->
 <entry key="savePath"></entry>
+
+<entry key="title_author_regex_1">.*\[(.*)]\s(.*)</entry>
+<entry key="title_capturing_group_1">2</entry>
+<entry key="author_capturing_group_1">1</entry>
+
+<entry key="title_author_regex_2">((\(.*\))|(【.*】))*\s*(.*)</entry>
+<entry key="title_capturing_group_2">4</entry>
+<entry key="author_capturing_group_2"></entry>
+
 </properties>

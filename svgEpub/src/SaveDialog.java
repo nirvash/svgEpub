@@ -32,7 +32,6 @@ import javax.swing.UIManager;
 
 import nl.siegmann.epublib.util.StringUtil;
 
-
 //VS4E -- DO NOT REMOVE THIS LINE!
 public class SaveDialog extends JDialog implements ActionListener, ComponentListener {
 
@@ -45,6 +44,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private JLabel jLabel0;
 	private JTextField jTextField0;
 	private JButton jButton2;
+	private JButton jButton3;
 	private JLabel jLabel1;
 	private JTextField jTextField1;
 	private JLabel jLabel2;
@@ -214,6 +214,19 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		}
 		return jButton2;
 	}
+	
+	private JButton getJButton3() {
+		if (jButton3 == null) {
+			jButton3 = new JButton();
+			jButton3.setText("Auto");
+			jButton3.setActionCommand("GetTitleAndAuthor");
+			jButton3.addActionListener(this);
+			jButton3.setMinimumSize(new Dimension(63, 20));
+			jButton3.setPreferredSize(new Dimension(63, 20));
+			jButton3.setMaximumSize(new Dimension(63, 20));
+		}
+		return jButton3;
+	}
 
 	private JTextField getJTextField0() {
 		if (jTextField0 == null) {
@@ -250,6 +263,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 			addGrid(jPanel2, getJButton2(), 	2, 0, 0.0f);
 			addGrid(jPanel2, getJLabel1(), 		0, 1, 0.0f);
 			addGrid(jPanel2, getJTextField1(),	1, 1, 1.0f);
+			addGrid(jPanel2, getJButton3(),		2, 1, 0.0f);
 			addGrid(jPanel2, getJLabel2(),		0, 2, 0.0f);
 			addGrid(jPanel2, getJTextField2(),	1, 2, 1.0f);
 			addGrid(jPanel2, getJLabel3(),		0, 3, 0.0f);
@@ -334,7 +348,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 			public void run() {
 				SaveDialog dialog = new SaveDialog();
 				dialog.setDefaultCloseOperation(SaveDialog.DISPOSE_ON_CLOSE);
-				dialog.setTitle("SaveDialog");
+				dialog.setTitle("Save");
 				dialog.setLocationRelativeTo(null);
 				dialog.getContentPane().setPreferredSize(dialog.getSize());
 				dialog.pack();
@@ -353,6 +367,12 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		} else if (e.getActionCommand().equals("File")) {
 			String path = selectFilePath();
 			getJTextField0().setText(path);
+		} else if (e.getActionCommand().equals("GetTitleAndAuthor")) {
+			epubWriter.analyzerTitleAndPath();
+			getJTextField1().setText(epubWriter.getTitle());
+			getJTextField2().setText(epubWriter.getAuthor());
+			getJTextField3().setText(epubWriter.getOutputFilename());
+			
 		}
 	}
 	
@@ -401,20 +421,14 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 
 	@Override
 	public void componentMoved(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void componentResized(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void componentShown(ComponentEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 }

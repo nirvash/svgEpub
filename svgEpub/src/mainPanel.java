@@ -3,14 +3,11 @@ import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ItemListener;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.InvalidPropertiesFormatException;
 import java.util.Properties;
 
 import javax.swing.BoxLayout;
@@ -28,8 +25,6 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.ListSelectionListener;
-
 import org.apache.batik.swing.JSVGCanvas;
 
 
@@ -57,6 +52,8 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JButton jButton2;
 	private JCheckBox jCheckBox0;
 	
+	private SaveDialog saveDialog;
+	
 	private ItemSelectionListener itemSelectionListener;
 	
 	private static Properties properties = new Properties();
@@ -82,10 +79,11 @@ public class mainPanel extends JFrame implements ActionListener {
 			e.printStackTrace();
 		}
 		
-		Epub.setProperty(properties);
-		
+		Epub.setProperty(properties);		
+		saveDialog = new SaveDialog(this , "Save EPUB" , true, properties);
 		
 		add(getJPanel1());
+		
 		setSize(640, 452);
 	}
 
@@ -315,10 +313,9 @@ public class mainPanel extends JFrame implements ActionListener {
 			Enumeration<ListItem> elist = (Enumeration<ListItem>) model.elements();
 			ArrayList<ListItem> list = (ArrayList<ListItem>) Collections.list(elist);
 
-			SaveDialog dialog = new SaveDialog(this , "Save EPUB" , true, properties);
-			dialog.setLocationRelativeTo(this);
-			dialog.setList(list);
-			dialog.setVisible(true);
+			saveDialog.setLocationRelativeTo(this);
+			saveDialog.setList(list);
+			saveDialog.setVisible(true);
 		}
 	}
 	
