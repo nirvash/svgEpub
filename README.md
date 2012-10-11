@@ -12,7 +12,7 @@ Download
 
 Version 0.8
 
-* TBD
+* [nirvash-svgEpub-version-0.8-0.zip](https://github.com/nirvash/svgEpub/zipball/version-0.8)
 
 Install
 ========
