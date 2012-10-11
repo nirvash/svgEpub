@@ -30,7 +30,7 @@ import nl.siegmann.epublib.epub.EpubWriter;
 import nl.siegmann.epublib.util.StringUtil;
 
 
-public class Epub extends Thread  {
+public class Epub {
 	private ArrayList<ListItem> fileList;
 	private String title;
 	private String author;
@@ -38,10 +38,17 @@ public class Epub extends Thread  {
 	private String outputFilename;
 	private ProgressMonitor monitor;
 	static private CustomProperties properties;
+	
+	private class WorkThread extends Thread {
+		@Override
+		public void run() {
+			createEpub(Epub.this.path, Epub.this.monitor);
+		}
+	}
 
-	@Override
-	public void run() {
-		createEpub(this.path, this.monitor);
+	public void start() {
+		Thread th = new WorkThread();
+		th.start();
 	}
 	
 	public void setPath(String path) {
