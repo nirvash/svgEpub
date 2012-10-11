@@ -3,7 +3,7 @@
 <properties>
 <comment>Configuration File</comment>
 
-<entry key="debug">yes</entry><!-- yes or no -->
+<entry key="debug">no</entry><!-- yes or no -->
 
 <entry key="potrace_path_win32">thirdparty/potrace/win32/potrace.exe</entry>
 <entry key="mkbitmap_path_win32">thirdparty/potrace/win32/mkbitmap.exe</entry>
