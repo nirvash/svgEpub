@@ -78,6 +78,7 @@ public class Epub {
 			FileOutputStream out =  new FileOutputStream(path);
 			epubWriter.write(book, out);
 			monitor.setProgress(monitor.getMaximum());
+			out.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}		
@@ -133,10 +134,6 @@ public class Epub {
 		
 			return convertToSvg(pnmFile);
 		} finally {
-			if (!StringUtil.equals("yes", properties.getProperty("debug"))) {
-				if (bitmapFile != null) bitmapFile.delete();
-				if (pnmFile != null) pnmFile.delete();
-			}
 		}
 	}
 
@@ -157,7 +154,10 @@ public class Epub {
 			e.printStackTrace();
 			return null;
 		}
-		return new File(outFilename);
+		
+		File outFile = new File(outFilename);
+		outFile.deleteOnExit();
+		return outFile;
 	}
 	
 
@@ -195,7 +195,9 @@ public class Epub {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return new File(pnmFile);
+		File outFile = new File(pnmFile);
+		outFile.deleteOnExit();
+		return outFile;
 	}
 	
 	static private File getMkbitmapFile() {
@@ -237,7 +239,10 @@ public class Epub {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return new File(svgFile);
+		
+		File outFile = new File(svgFile);
+		outFile.deleteOnExit();
+		return outFile;
 	}
 
 	static private File getPotraceFile() {

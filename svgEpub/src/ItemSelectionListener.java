@@ -73,7 +73,6 @@ public class ItemSelectionListener implements ListSelectionListener {
 			try {
 				image = ImageIO.read(file);
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
 			imagePanel.setImage(image);

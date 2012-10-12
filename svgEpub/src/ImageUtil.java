@@ -20,7 +20,7 @@ public class ImageUtil {
 
 	public static File convertToBitmap(File imageFile) {
 		String path = getTmpDirectory();
-		String tmpFilename = path + "tmp." + getExtension(imageFile);
+		String tmpFilename = path + "tmp" + getExtension(imageFile);
 		File tmpFile = new File(tmpFilename);
 		tmpFile.deleteOnExit();
 		File tmpOutFile = new File(path + "tmpout.bmp");
@@ -38,11 +38,19 @@ public class ImageUtil {
 		IplImage source_image = cvLoadImage(tmpFile.getPath());
 		
 		// Binalize
-		CvSize image_size = source_image.cvSize();
-		IplImage target_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
-		IplImage threshold_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
+		int scale = 2;
+		CvSize image_size = new CvSize(source_image.width()*scale, source_image.height()*scale);
 
-		cvCvtColor( source_image, target_image, CV_BGR2GRAY );
+		IplImage grey_image = cvCreateImage( source_image.cvSize(), IPL_DEPTH_8U, 1);
+		cvCvtColor( source_image, grey_image, CV_BGR2GRAY );
+		cvReleaseImage(source_image);
+				
+		IplImage target_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
+		
+		cvResize(grey_image, target_image, CV_INTER_LANCZOS4);
+		cvReleaseImage(grey_image);
+
+		IplImage threshold_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
 		
 		int blockSize = 31;
 		cvAdaptiveThreshold( target_image , threshold_image, 255,
@@ -50,11 +58,11 @@ public class ImageUtil {
 				 CV_THRESH_BINARY, blockSize, 5 );
 		
 		cvSaveImage(tmpOutFile.getPath(), threshold_image);
-		cvReleaseImage(source_image);
 		cvReleaseImage(target_image);
 		cvReleaseImage(threshold_image);
 
 		File outFile = new File(outFilename);
+		outFile.deleteOnExit();
 		try {
 			copyFile(tmpOutFile, outFile);
 		} catch (IOException e) {
