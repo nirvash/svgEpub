@@ -121,10 +121,14 @@ public class Epub {
 		File bitmapFile = null;
 		File pnmFile = null;
 		try {
-			bitmapFile = convertToBitmap(imageFile);
-			if (bitmapFile == null || !bitmapFile.exists()) return null;
+			if (properties.getProperty("enable_opencv", "no").equals("yes")) {
+				pnmFile = ImageUtil.convertToBitmap(imageFile);
+			} else {
+				bitmapFile = convertToBitmap(imageFile);
+				if (bitmapFile == null || !bitmapFile.exists()) return null;
 			
-			pnmFile = convertToPnm(bitmapFile);
+				pnmFile = convertToPnm(bitmapFile);
+			}
 			if (pnmFile == null || !pnmFile.exists()) return null;
 		
 			return convertToSvg(pnmFile);
