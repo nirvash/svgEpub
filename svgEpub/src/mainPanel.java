@@ -2,15 +2,24 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
+import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Properties;
+import java.util.TimerTask;
+import java.util.Timer;
 
+import javax.swing.Action;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -20,6 +29,7 @@ import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
@@ -29,6 +39,9 @@ import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 import org.apache.batik.swing.JSVGCanvas;
+import org.apache.batik.swing.gvt.AbstractImageZoomInteractor;
+import org.apache.batik.swing.gvt.AbstractPanInteractor;
+import org.apache.batik.swing.gvt.AbstractZoomInteractor;
 
 
 //VS4E -- DO NOT REMOVE THIS LINE!
@@ -130,14 +143,29 @@ public class mainPanel extends JFrame implements ActionListener {
 		return jCheckBox0;
 	}
 
+	@SuppressWarnings("unchecked")
 	private JSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
 			svgCanvas = new JSVGCanvas();
 			
 			svgCanvas.setEnableImageZoomInteractor(true);
 			svgCanvas.setEnablePanInteractor(true);
-			svgCanvas.setEnableZoomInteractor(false);
+			svgCanvas.setEnableZoomInteractor(true);
 			svgCanvas.setEnableRotateInteractor(false);
+			svgCanvas.addMouseWheelListener(new WheelZooming());
+			svgCanvas.getInteractors().add(new AbstractPanInteractor() {
+		    	public boolean startInteraction(InputEvent ie) {
+		    		int mods = ie.getModifiers();
+		            return ie.getID() == MouseEvent.MOUSE_PRESSED && (mods & InputEvent.BUTTON1_MASK) != 0;
+		    	}
+			});
+	
+			svgCanvas.getInteractors().add(new AbstractImageZoomInteractor() {
+				public boolean startInteraction(InputEvent ie) {
+					int mods = ie.getModifiers();
+					return ie.getID() == MouseEvent.MOUSE_PRESSED && (mods & InputEvent.BUTTON1_MASK) != 0;
+				}
+			});
 		}
 		return svgCanvas;
 	}
@@ -406,6 +434,67 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 			
 	}
+	
+	private class WheelZooming implements MouseWheelListener {
+		boolean isFinished=true;
+		TimerTask task;
+		private Timer timer = new Timer();
 
+		void updateWheelTransform(){
+			if(!isFinished){
+		        AffineTransform pt =  svgCanvas.getPaintingTransform();
+		        if (pt != null) {
+		            AffineTransform rt = (AffineTransform)svgCanvas.getRenderingTransform().clone();
+		            rt.preConcatenate(pt);
+		            svgCanvas.setRenderingTransform(rt);
+		        }
+		        isFinished =true;
+		        task=null;
+			}
+		}
+		
+		void taskStart(){
+			if(task!=null)task.cancel();
+			task=new TimerTask(){
+				@Override
+				public void run() {
+					updateWheelTransform();
+				}
+			};
+			timer.schedule(task, 500);
+		}
+		
+		public void mouseWheelMoved(MouseWheelEvent ev) {
+			try{
+				/*
+				Rectangle rec = svgCanvas.getBounds();
+				double cx = (rec.getCenterX() + ev.getX())/2;
+				double cy = (rec.getCenterY() + ev.getY())/2;
+				*/
+				double cx = ev.getX();
+				double cy = ev.getY();
+	            AffineTransform at = AffineTransform.getTranslateInstance(cx,cy);
+	            if (ev.getWheelRotation() < 0) {
+	            	if((at.getScaleX()*1.15) < Double.MAX_VALUE){
+	    				at.scale(1.15, 1.15);
+	    				at.translate(-cx,-cy);
+	            	}
+				} else {
+	            	if ((at.getScaleX()*0.85) > Double.MIN_VALUE){
+	            		at.scale(0.85, 0.85);
+	            		at.translate(-cx,-cy);
+	            	}
+				}
+				if (isFinished) {
+					svgCanvas.setPaintingTransform(null);
+					isFinished=false;
+				} else {
+					at.concatenate(svgCanvas.getPaintingTransform());
+				}
+				svgCanvas.setPaintingTransform(at);
+				taskStart();
+			} catch (NullPointerException ne){}
+		}
+	}
 	
 }

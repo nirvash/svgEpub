@@ -74,7 +74,7 @@ public class ImageUtil {
 							 CV_THRESH_BINARY_INV, blockSize, 5 );
 					cvNot(image_edge, image_target);
 				} else if (isComplicatedIllust) {
-					if (std_dev.val(2) > 95.0f) {
+					if (std_dev.val(2) > 85.0f) {
 						return null;
 					}
 					IplImage image_simple = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
