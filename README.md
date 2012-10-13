@@ -10,9 +10,9 @@ User can choose image files itself or SVG files which converted from image files
 Download
 ========
 
-Version 0.8
+Version 0.9
 
-* [nirvash-svgEpub-version-0.8-0.zip](https://github.com/nirvash/svgEpub/zipball/version-0.8)
+* [nirvash-svgEpub-version-0.9-0.zip](https://github.com/nirvash/svgEpub/zipball/version-0.9)
 
 Install
 ========
@@ -21,6 +21,14 @@ Install
 1. Unzip downloaded archive.
 1. Move to nirvash-svgEpub-7fd76ce\svgEpub\binary
 1. Execute svgEpub.jar.
+
+  
+### optional for Windows : use opencv for more better conversion
+* Install the runtime components of Microsoft Visual C++ 2010
+ * [Microsoft Visual C++ 2010 Redistributable Package (x86)](http://www.microsoft.com/download/en/details.aspx?id=5555)
+ * [Microsoft Visual C++ 2010 Redistributable Package (x64)](http://www.microsoft.com/download/en/details.aspx?id=14632)
+* Extract [OpenCV-2.4.2.exe](http://sourceforge.net/projects/opencvlibrary/files/opencv-win/2.4.2/OpenCV-2.4.2.exe/download) inside the root directory C:\
+* Set enable_opencv to yes in config dialog.
 
 Limitation
 ========
