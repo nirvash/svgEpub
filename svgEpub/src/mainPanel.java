@@ -85,10 +85,18 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 		
 		Epub.setProperty(properties);
-		
 		add(getJPanel1());
-		
 		setSize(640, 452);
+		
+		Runtime.getRuntime().addShutdownHook(new Shutdown());
+	}
+	
+	class Shutdown extends Thread {
+		public void run() {
+			if (svgCanvas != null) {
+				svgCanvas.setURI(null);
+			}
+		}
 	}
 
 	private JButton getJButton3() {

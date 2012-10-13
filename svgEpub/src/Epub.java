@@ -342,13 +342,17 @@ public class Epub {
 
     static String convertInputStreamToString(InputStream is) throws IOException {
         InputStreamReader reader = new InputStreamReader(is);
-        StringBuilder builder = new StringBuilder();
-        char[] buf = new char[1024];
-        int numRead;
-        while (0 <= (numRead = reader.read(buf))) {
-            builder.append(buf, 0, numRead);
+        try {
+	        StringBuilder builder = new StringBuilder();
+	        char[] buf = new char[1024];
+	        int numRead;
+	        while (0 <= (numRead = reader.read(buf))) {
+	            builder.append(buf, 0, numRead);
+	        }
+	        return builder.toString();
+        } finally {
+            reader.close();
         }
-        return builder.toString();
     }
     
     private static String readFile(File file) throws IOException {

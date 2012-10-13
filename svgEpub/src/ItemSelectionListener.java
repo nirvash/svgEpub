@@ -75,7 +75,7 @@ public class ItemSelectionListener implements ListSelectionListener {
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
-			imagePanel.setImage(image);
+			imagePanel.setImage(image);			
 		}
 	}
 }
