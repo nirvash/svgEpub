@@ -107,6 +107,10 @@ public class Epub {
 					File svgFile = convertToSvgFromImage(file);
 					if (svgFile != null) {
 						createSvgPage(book, template, pageName, pageFile, svgFile);
+						svgFile.delete();
+						page++;
+					} else {
+						createImagePage(book, template, pageName, pageFile, file);
 						page++;
 					}
 				} else {
@@ -134,6 +138,8 @@ public class Epub {
 		
 			return convertToSvg(pnmFile);
 		} finally {
+			if (pnmFile != null) pnmFile.delete();
+			if (bitmapFile != null) bitmapFile.delete();
 		}
 	}
 

@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import com.googlecode.javacpp.BytePointer;
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 import com.googlecode.javacv.cpp.opencv_objdetect;
@@ -35,31 +36,87 @@ public class ImageUtil {
 		String outFilename = path + imageFile.getName();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");
 		
-		IplImage source_image = cvLoadImage(tmpFile.getPath());
+		IplImage image_source = cvLoadImage(tmpFile.getPath());
+		CvSize size_source = image_source.cvSize();
+		
+		// Color detection
+		IplImage image_hsv = cvCreateImage( size_source, IPL_DEPTH_8U, 3);
+		cvCvtColor(image_source, image_hsv, CV_RGB2HSV);
+		CvScalar mean = cvScalarAll(0);
+		CvScalar std_dev= cvScalarAll(0);
+
+		cvAvgSdv(image_hsv, mean, std_dev, null);
+		boolean isColorImage = std_dev.val(1) > 30.0f;
+		boolean containsIllust = std_dev.val(2) > 55.0f;
+		cvReleaseImage(image_hsv);
 		
 		// Binalize
-		int scale = 2;
-		CvSize image_size = new CvSize(source_image.width()*scale, source_image.height()*scale);
+		double scale = 2;
+		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 
-		IplImage grey_image = cvCreateImage( source_image.cvSize(), IPL_DEPTH_8U, 1);
-		cvCvtColor( source_image, grey_image, CV_BGR2GRAY );
-		cvReleaseImage(source_image);
+		IplImage image_grey = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
+		cvCvtColor( image_source, image_grey, CV_BGR2GRAY );
+		cvReleaseImage(image_source);
 				
-		IplImage target_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
+		IplImage image_target = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+		IplImage image_edge   = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
 		
-		cvResize(grey_image, target_image, CV_INTER_LANCZOS4);
-		cvReleaseImage(grey_image);
-
-		IplImage threshold_image = cvCreateImage( image_size, IPL_DEPTH_8U, 1 );
-		
+		cvResize(image_grey, image_target, CV_INTER_LANCZOS4);
+	
 		int blockSize = 31;
-		cvAdaptiveThreshold( target_image , threshold_image, 255,
+		cvAdaptiveThreshold( image_target , image_edge, 255,
 				 CV_ADAPTIVE_THRESH_MEAN_C,
-				 CV_THRESH_BINARY, blockSize, 5 );
+				 CV_THRESH_BINARY_INV, blockSize, 5 );
 		
-		cvSaveImage(tmpOutFile.getPath(), threshold_image);
-		cvReleaseImage(target_image);
-		cvReleaseImage(threshold_image);
+		if (!isColorImage) {
+			if (!containsIllust) {
+				cvNot(image_edge, image_target);
+			} else {
+				IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+				cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+				
+				cvOr(image_edge, image_beta, image_target, null);
+				cvNot(image_target, image_target);
+				cvReleaseImage(image_beta);
+			}
+		} else {
+			// color
+			if (true) {
+				return null;
+			} else { // tone
+				IplImage image_tone = cvCreateImage( size_source, IPL_DEPTH_8U, 1 );
+				floydSteinberg(image_grey, image_tone);
+				cvReleaseImage(image_grey);
+				
+				cvNot(image_tone, image_tone);
+				
+				IplImage image_tone2 = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+				cvResize(image_tone, image_tone2, CV_INTER_NN);
+				cvReleaseImage(image_tone);
+
+				IplImage mask = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+				cvThreshold(image_target, mask, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+
+				cvCopy(image_edge, image_target);
+				cvOr(image_edge, image_tone2, image_target, mask);
+				cvNot(image_target, image_target);
+				
+				cvReleaseImage(image_tone2);
+				cvReleaseImage(mask);
+			}
+		}
+/*
+		cvNot(mask, mask);
+		cvNot(image_edge, image_edge);
+		cvNot(image_tone2, image_tone2);
+		
+		cvSaveImage(tmpOutFile.getPath() + ".mask.bmp", mask);
+		cvSaveImage(tmpOutFile.getPath() + ".edge.bmp", image_edge);
+		cvSaveImage(tmpOutFile.getPath() + ".tone2.bmp", image_tone2);
+*/
+		cvSaveImage(tmpOutFile.getPath(), image_target);
+		cvReleaseImage(image_target);
+		cvReleaseImage(image_edge);
 
 		File outFile = new File(outFilename);
 		outFile.deleteOnExit();
@@ -72,6 +129,44 @@ public class ImageUtil {
 
 		
 		return outFile;
+	}
+	
+	static void floydSteinberg(IplImage in, IplImage out) {
+		int[][] pattern = new int[][] {
+				{ 0,  1, 7},
+				{ 1, -1, 3},
+				{ 1,  0, 5},
+				{ 1,  1, 1}				
+		};
+
+		byte[] outBytes = new byte[in.widthStep() * in.height()];
+		in.imageData().get(outBytes);
+		
+		int index;
+		double e;
+		for (int j=0; j<out.height()-1; j++) {
+			for (int i=1; i<out.widthStep()-1; i++) {
+				index = j * out.widthStep() + i;
+				int c = (int)(outBytes[index] & 0xFF);
+				if (c > 127) {
+					e = (double)(c - 255);
+					outBytes[index] = (byte)-1;
+
+				} else {
+					e = (double)c;
+					outBytes[index] = (byte)0;
+				}
+				
+				for (int[] pat : pattern) {
+					index = (j + pat[0]) * out.widthStep() + (i + pat[1]);
+					c = (int) (outBytes[index] & 0xff) + (int)(e * pat[2] / 16.0f);
+					c = (c > 127) ? c - 256 : c;
+					outBytes[index] = (byte)c;
+				}
+			}
+		}
+		
+		out.imageData().put(outBytes);
 	}
 	
 	private static String getExtension(File file) {
