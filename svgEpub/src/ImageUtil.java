@@ -63,93 +63,98 @@ public class ImageUtil {
 		IplImage image_edge   = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
 		
 		cvResize(image_grey, image_target, CV_INTER_LANCZOS4);
+
+		try {
+			
+			if (!isColorImage) {
+				if (!containsIllust) {
+					int blockSize = 31;
+					cvAdaptiveThreshold( image_target , image_edge, 255,
+							 CV_ADAPTIVE_THRESH_MEAN_C,
+							 CV_THRESH_BINARY_INV, blockSize, 5 );
+					cvNot(image_edge, image_target);
+				} else if (isComplicatedIllust) {
+					if (std_dev.val(2) > 95.0f) {
+						return null;
+					}
+					IplImage image_simple = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
+					cvSmooth (image_grey, image_simple, CV_BILATERAL, 10, 10, 60, 40);
+					cvResize(image_simple, image_target, CV_INTER_LINEAR);
+					cvThreshold(image_target, image_target, 0, 255,	CV_THRESH_BINARY | CV_THRESH_OTSU);
+					cvReleaseImage(image_simple);
+					/*
+					int blockSize = 41;
+					IplImage image_smooth = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
+					cvSmooth (image_target, image_smooth, CV_BILATERAL, 14, 14, 60, 40);
+					cvSaveImage(tmpOutFile.getPath() + ".smooth.bmp", image_smooth);
+					cvResize(image_smooth, image_target, CV_INTER_LINEAR);
+					cvReleaseImage(image_smooth);
 	
-		
-		if (!isColorImage) {
-			if (!containsIllust) {
-				int blockSize = 31;
-				cvAdaptiveThreshold( image_target , image_edge, 255,
-						 CV_ADAPTIVE_THRESH_MEAN_C,
-						 CV_THRESH_BINARY_INV, blockSize, 5 );
-				cvNot(image_edge, image_target);
-			} else if (isComplicatedIllust) {
-				IplImage image_simple = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
-				cvSmooth (image_grey, image_simple, CV_BILATERAL, 10, 10, 60, 40);
-				cvResize(image_simple, image_target, CV_INTER_LINEAR);
-				cvThreshold(image_target, image_target, 0, 255,	CV_THRESH_BINARY | CV_THRESH_OTSU);
-				cvReleaseImage(image_simple);
-				/*
-				int blockSize = 41;
-				IplImage image_smooth = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
-				cvSmooth (image_target, image_smooth, CV_BILATERAL, 14, 14, 60, 40);
-				cvSaveImage(tmpOutFile.getPath() + ".smooth.bmp", image_smooth);
-				cvResize(image_smooth, image_target, CV_INTER_LINEAR);
-				cvReleaseImage(image_smooth);
-
-				cvAdaptiveThreshold( image_target , image_edge, 255,
-						 CV_ADAPTIVE_THRESH_MEAN_C,
-						 CV_THRESH_BINARY_INV, blockSize, 9 );
-				
-				IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
-				cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
-				
-				cvOr(image_edge, image_beta, image_target, null);
-				cvNot(image_target, image_target);
-				cvReleaseImage(image_beta);
-	*/
+					cvAdaptiveThreshold( image_target , image_edge, 255,
+							 CV_ADAPTIVE_THRESH_MEAN_C,
+							 CV_THRESH_BINARY_INV, blockSize, 9 );
+					
+					IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+					cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+					
+					cvOr(image_edge, image_beta, image_target, null);
+					cvNot(image_target, image_target);
+					cvReleaseImage(image_beta);
+		*/
+				} else {
+					int blockSize = 41;
+					cvAdaptiveThreshold( image_target , image_edge, 255,
+							 CV_ADAPTIVE_THRESH_MEAN_C,
+							 CV_THRESH_BINARY_INV, blockSize, 9 );
+					
+					IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+					cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+					
+					cvOr(image_edge, image_beta, image_target, null);
+					cvNot(image_target, image_target);
+					cvReleaseImage(image_beta);
+				}
 			} else {
-				int blockSize = 41;
-				cvAdaptiveThreshold( image_target , image_edge, 255,
-						 CV_ADAPTIVE_THRESH_MEAN_C,
-						 CV_THRESH_BINARY_INV, blockSize, 9 );
-				
-				IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
-				cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
-				
-				cvOr(image_edge, image_beta, image_target, null);
-				cvNot(image_target, image_target);
-				cvReleaseImage(image_beta);
+				// color
+				if (true) {
+					return null;
+				} else { // tone
+					IplImage image_tone = cvCreateImage( size_source, IPL_DEPTH_8U, 1 );
+					floydSteinberg(image_grey, image_tone);
+					cvReleaseImage(image_grey);
+					
+					cvNot(image_tone, image_tone);
+					
+					IplImage image_tone2 = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+					cvResize(image_tone, image_tone2, CV_INTER_NN);
+					cvReleaseImage(image_tone);
+	
+					IplImage mask = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+					cvThreshold(image_target, mask, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+	
+					cvCopy(image_edge, image_target);
+					cvOr(image_edge, image_tone2, image_target, mask);
+					cvNot(image_target, image_target);
+					
+					cvReleaseImage(image_tone2);
+					cvReleaseImage(mask);
+				}
 			}
-		} else {
-			// color
-			if (true) {
-				return null;
-			} else { // tone
-				IplImage image_tone = cvCreateImage( size_source, IPL_DEPTH_8U, 1 );
-				floydSteinberg(image_grey, image_tone);
-				cvReleaseImage(image_grey);
-				
-				cvNot(image_tone, image_tone);
-				
-				IplImage image_tone2 = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
-				cvResize(image_tone, image_tone2, CV_INTER_NN);
-				cvReleaseImage(image_tone);
-
-				IplImage mask = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
-				cvThreshold(image_target, mask, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
-
-				cvCopy(image_edge, image_target);
-				cvOr(image_edge, image_tone2, image_target, mask);
-				cvNot(image_target, image_target);
-				
-				cvReleaseImage(image_tone2);
-				cvReleaseImage(mask);
-			}
-		}
 /*
-		cvNot(mask, mask);
-		cvNot(image_edge, image_edge);
-		cvNot(image_tone2, image_tone2);
-		
-		cvSaveImage(tmpOutFile.getPath() + ".mask.bmp", mask);
-		cvSaveImage(tmpOutFile.getPath() + ".edge.bmp", image_edge);
-		cvSaveImage(tmpOutFile.getPath() + ".tone2.bmp", image_tone2);
+			cvNot(mask, mask);
+			cvNot(image_edge, image_edge);
+			cvNot(image_tone2, image_tone2);
+			
+			cvSaveImage(tmpOutFile.getPath() + ".mask.bmp", mask);
+			cvSaveImage(tmpOutFile.getPath() + ".edge.bmp", image_edge);
+			cvSaveImage(tmpOutFile.getPath() + ".tone2.bmp", image_tone2);
 */
-		cvSaveImage(tmpOutFile.getPath(), image_target);
-		cvReleaseImage(image_target);
-		cvReleaseImage(image_edge);
-		cvReleaseImage(image_grey);
-
+			cvSaveImage(tmpOutFile.getPath(), image_target);
+		} finally {
+			cvReleaseImage(image_target);
+			cvReleaseImage(image_edge);
+			cvReleaseImage(image_grey);
+		}
 		File outFile = new File(outFilename);
 		outFile.deleteOnExit();
 		try {
