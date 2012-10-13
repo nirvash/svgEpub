@@ -46,8 +46,9 @@ public class ImageUtil {
 		CvScalar std_dev= cvScalarAll(0);
 
 		cvAvgSdv(image_hsv, mean, std_dev, null);
-		boolean isColorImage = std_dev.val(1) > 30.0f;
-		boolean containsIllust = std_dev.val(2) > 55.0f;
+		boolean isColorImage = std_dev.val(1) > 3.0f;
+		boolean containsIllust = std_dev.val(2) > 40.0f;
+		boolean isComplicatedIllust = std_dev.val(2) > 85.0f;
 		cvReleaseImage(image_hsv);
 		
 		// Binalize
@@ -63,15 +64,45 @@ public class ImageUtil {
 		
 		cvResize(image_grey, image_target, CV_INTER_LANCZOS4);
 	
-		int blockSize = 31;
-		cvAdaptiveThreshold( image_target , image_edge, 255,
-				 CV_ADAPTIVE_THRESH_MEAN_C,
-				 CV_THRESH_BINARY_INV, blockSize, 5 );
 		
 		if (!isColorImage) {
 			if (!containsIllust) {
+				int blockSize = 31;
+				cvAdaptiveThreshold( image_target , image_edge, 255,
+						 CV_ADAPTIVE_THRESH_MEAN_C,
+						 CV_THRESH_BINARY_INV, blockSize, 5 );
 				cvNot(image_edge, image_target);
+			} else if (isComplicatedIllust) {
+				IplImage image_simple = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
+				cvSmooth (image_grey, image_simple, CV_BILATERAL, 10, 10, 60, 40);
+				cvResize(image_simple, image_target, CV_INTER_LINEAR);
+				cvThreshold(image_target, image_target, 0, 255,	CV_THRESH_BINARY | CV_THRESH_OTSU);
+				cvReleaseImage(image_simple);
+				/*
+				int blockSize = 41;
+				IplImage image_smooth = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
+				cvSmooth (image_target, image_smooth, CV_BILATERAL, 14, 14, 60, 40);
+				cvSaveImage(tmpOutFile.getPath() + ".smooth.bmp", image_smooth);
+				cvResize(image_smooth, image_target, CV_INTER_LINEAR);
+				cvReleaseImage(image_smooth);
+
+				cvAdaptiveThreshold( image_target , image_edge, 255,
+						 CV_ADAPTIVE_THRESH_MEAN_C,
+						 CV_THRESH_BINARY_INV, blockSize, 9 );
+				
+				IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+				cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+				
+				cvOr(image_edge, image_beta, image_target, null);
+				cvNot(image_target, image_target);
+				cvReleaseImage(image_beta);
+	*/
 			} else {
+				int blockSize = 41;
+				cvAdaptiveThreshold( image_target , image_edge, 255,
+						 CV_ADAPTIVE_THRESH_MEAN_C,
+						 CV_THRESH_BINARY_INV, blockSize, 9 );
+				
 				IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
 				cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
 				
@@ -117,6 +148,7 @@ public class ImageUtil {
 		cvSaveImage(tmpOutFile.getPath(), image_target);
 		cvReleaseImage(image_target);
 		cvReleaseImage(image_edge);
+		cvReleaseImage(image_grey);
 
 		File outFile = new File(outFilename);
 		outFile.deleteOnExit();
