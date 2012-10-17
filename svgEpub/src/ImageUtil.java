@@ -331,7 +331,9 @@ public class ImageUtil {
 	
 	public static Document createSvgDocument(Rectangle clipRect, Rectangle imageRect, String imageURI, boolean isPreview) {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
-		
+		if (clipRect == null) {
+			clipRect = imageRect;
+		}
 		Rectangle rootRect = isPreview ? clipRect : imageRect;
 		Document doc = impl.createDocument(svgNS, "svg", null);		
 		Element svgRootOuter = doc.getDocumentElement();
