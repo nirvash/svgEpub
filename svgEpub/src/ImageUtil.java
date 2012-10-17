@@ -1,9 +1,29 @@
+import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Iterator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
+
+import org.apache.batik.css.parser.ParseException;
+import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
+import org.apache.batik.dom.svg.SVGDOMImplementation;
+import org.apache.batik.dom.util.XLinkSupport;
+import org.apache.batik.util.XMLResourceDescriptor;
+import org.w3c.dom.Attr;
+import org.w3c.dom.DOMImplementation;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.events.EventTarget;
 
 import com.googlecode.javacpp.BytePointer;
 import com.googlecode.javacpp.Loader;
@@ -15,11 +35,13 @@ import static com.googlecode.javacv.cpp.opencv_imgproc.*;
 import static com.googlecode.javacv.cpp.opencv_highgui.*;
 
 public class ImageUtil {
+	private static final String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
+	
 	static {
 		Loader.load(opencv_objdetect.class);
 	}
 
-	public static File convertToBitmap(File imageFile) {
+	public static File convertToBitmap(File imageFile, Rectangle imageSize) {
 		String path = getTmpDirectory();
 		String tmpFilename = path + "tmp" + getExtension(imageFile);
 		File tmpFile = new File(tmpFilename);
@@ -54,6 +76,10 @@ public class ImageUtil {
 		// Binalize
 		double scale = 2;
 		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
+		if (imageSize != null) {
+			imageSize.width = image_source.width();
+			imageSize.height = image_source.height();
+		}
 
 		IplImage image_grey = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
 		cvCvtColor( image_source, image_grey, CV_BGR2GRAY );
@@ -247,5 +273,94 @@ public class ImageUtil {
 				out.close();
 			}
 		}
+	}
+
+	public static Rectangle getImageSize(File file) {
+    	String extension = PathUtil.getExtension(file.getName());
+    	
+    	Iterator<ImageReader> readers = ImageIO.getImageReadersBySuffix(extension);
+        ImageReader imageReader = (ImageReader) readers.next();
+    	Rectangle rect = new Rectangle();
+    	FileInputStream stream = null;
+		try {
+			stream = new FileInputStream(file);
+	        ImageInputStream imageInputStream = ImageIO.createImageInputStream(stream);
+	        imageReader.setInput(imageInputStream, false);
+	        rect.width = imageReader.getWidth(0);
+	        rect.height = imageReader.getHeight(0);
+			stream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return rect;
+	}
+
+	public static Rectangle getSvgSize(String newURI) {
+		Rectangle rect = new Rectangle(0, 0, 584, 754);
+		String parser = XMLResourceDescriptor.getXMLParserClassName();
+		SAXSVGDocumentFactory f = new SAXSVGDocumentFactory(parser);
+		try {
+			Document doc = f.createDocument(newURI);
+			Element svgRoot = doc.getDocumentElement();
+			
+			Attr width = svgRoot.getAttributeNodeNS(null, "width");		
+			if (width != null) {
+				rect.width = parse(width.getValue());
+			}
+	
+			Attr height = svgRoot.getAttributeNodeNS(null, "height");
+			if (height != null) {
+				rect.height = parse(height.getValue());
+			}
+		} catch (Exception e) {
+			
+		}
+		
+		return rect;
+	}
+
+	private static int parse(String value) {
+		Pattern p = Pattern.compile("(\\d+)(.*)");
+		Matcher m = p.matcher(value);
+		if (m.find()) {
+			return Integer.parseInt(m.group(1));
+		}
+		throw new ParseException(null);
+	}
+	
+	
+	public static Document createSvgDocument(Rectangle clipRect, Rectangle imageRect, String imageURI, boolean isPreview) {
+		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
+		
+		Rectangle rootRect = isPreview ? clipRect : imageRect;
+		Document doc = impl.createDocument(svgNS, "svg", null);		
+		Element svgRootOuter = doc.getDocumentElement();
+		svgRootOuter.setAttributeNS(null , "width", "100%");
+		svgRootOuter.setAttributeNS(null , "height", "100%");
+		svgRootOuter.setAttributeNS(null, "viewBox", 
+				String.format("0 0 %d %d",  rootRect.width, rootRect.height));
+		svgRootOuter.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
+
+		Element image = doc.createElementNS(svgNS, "image");
+		image.setAttributeNS(null, "width", Integer.toString(imageRect.width));
+		image.setAttributeNS(null, "height", Integer.toString(imageRect.height));
+		XLinkSupport.setXLinkHref(image,  imageURI);
+//		image.setAttributeNS(null, "xlink:href", imageURI);
+
+		if (isPreview) {
+			Element svgRootInner = (Element) doc.createElementNS(svgNS, "svg");
+			svgRootInner.setAttribute("id", "root_inner");
+			svgRootInner.setAttributeNS(null , "width", Integer.toString(clipRect.width));
+			svgRootInner.setAttributeNS(null , "height", Integer.toString(clipRect.height));
+			svgRootInner.setAttributeNS(null, "viewBox", 
+					String.format("%d %d %d %d",  clipRect.x, clipRect.y, clipRect.width, clipRect.height));
+			svgRootInner.setAttributeNS(null, "preserveAspectRatio", "xMidYMid slice");
+			
+			svgRootOuter.appendChild(svgRootInner);
+			svgRootInner.appendChild(image);
+		} else {
+			svgRootOuter.appendChild(image);
+		}
+		return doc;
 	}
 }

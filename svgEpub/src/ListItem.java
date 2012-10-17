@@ -1,3 +1,4 @@
+import java.awt.Rectangle;
 import java.io.File;
 
 
@@ -6,6 +7,7 @@ public class ListItem {
 	private File svgFile = null;
 	private boolean isSelected = false;
 	private boolean enableSelect = true;
+	private Rectangle clipRect = null;
 	
 	public ListItem(File value) {
 		this.file = value;
@@ -42,6 +44,14 @@ public class ListItem {
 	
 	public void setSvgFile(File file) {
 		this.svgFile = file;
+	}
+
+	public Rectangle getClipRect() {
+		return clipRect;
+	}
+
+	public void setClipRect(Rectangle clipRect) {
+		this.clipRect = clipRect;
 	}
 
 }

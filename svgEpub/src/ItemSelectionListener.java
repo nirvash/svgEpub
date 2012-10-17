@@ -17,16 +17,16 @@ import org.apache.batik.swing.JSVGCanvas;
 public class ItemSelectionListener implements ListSelectionListener {
 	private CardLayout cardLayout;
 	private JPanel parent;
-	private JSVGCanvas svgCanvas;
+	private CustomSVGCanvas svgCanvas;
 	private NavigableImagePanel imagePanel;
 	private DefaultListModel model = null;
 	private boolean enabledPreview = true;
 
-	public ItemSelectionListener(CardLayout layout, JPanel panel, NavigableImagePanel imagePanel, JSVGCanvas jsvgCanvas, DefaultListModel fileListModel) {
+	public ItemSelectionListener(CardLayout layout, JPanel panel, NavigableImagePanel imagePanel, CustomSVGCanvas svgCanvas, DefaultListModel fileListModel) {
 		cardLayout = layout;
 		parent = panel;
 		this.imagePanel = imagePanel;
-		svgCanvas = jsvgCanvas;
+		this.svgCanvas = svgCanvas;
 		model = fileListModel;
 	}
 	
@@ -66,8 +66,16 @@ public class ItemSelectionListener implements ListSelectionListener {
 		
 		if (mainPanel.isSvgFile(file)) {
 			cardLayout.last(parent);
+			svgCanvas.setListItem(item);
+			svgCanvas.setPreview(enabledPreview);
 			svgCanvas.setURI(file.toURI().toString());
 		} else {
+			cardLayout.last(parent);
+			svgCanvas.setListItem(item);
+			svgCanvas.setPreview(enabledPreview);
+			svgCanvas.setImage(file);
+			
+			/*
 			cardLayout.first(parent);
 			BufferedImage image = null;
 			try {
@@ -75,7 +83,8 @@ public class ItemSelectionListener implements ListSelectionListener {
 			} catch (IOException e1) {
 				e1.printStackTrace();
 			}
-			imagePanel.setImage(image);			
+			imagePanel.setImage(image);
+			*/
 		}
 	}
 }

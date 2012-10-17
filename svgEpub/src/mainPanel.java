@@ -5,22 +5,14 @@ import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseWheelEvent;
-import java.awt.event.MouseWheelListener;
-import java.awt.geom.AffineTransform;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.Properties;
-import java.util.TimerTask;
-import java.util.Timer;
 
-import javax.swing.Action;
-import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
@@ -29,20 +21,13 @@ import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JList;
 import javax.swing.JPanel;
-import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
-import org.apache.batik.swing.JSVGCanvas;
-import org.apache.batik.swing.gvt.AbstractImageZoomInteractor;
-import org.apache.batik.swing.gvt.AbstractPanInteractor;
-import org.apache.batik.swing.gvt.AbstractZoomInteractor;
-
+import org.dyno.visual.swing.layouts.GroupLayout;
 
 //VS4E -- DO NOT REMOVE THIS LINE!
 public class mainPanel extends JFrame implements ActionListener {
@@ -55,7 +40,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel jPanel4;
 	private CardLayout cardLayout;
 	private NavigableImagePanel naviImagePanel;
-	private JSVGCanvas svgCanvas;
+	private CustomSVGCanvas svgCanvas;
 
 	private JPanel jPanel1;
 	private JPanel jPanel2;
@@ -76,6 +61,8 @@ public class mainPanel extends JFrame implements ActionListener {
 	
 	private static CustomProperties properties = new CustomProperties();
 	private JButton jButton3;
+	private JButton jButton4;
+	private JPanel jPanel0;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
 		return properties;
@@ -104,6 +91,24 @@ public class mainPanel extends JFrame implements ActionListener {
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 	}
 	
+	private JPanel getJPanel0() {
+		if (jPanel0 == null) {
+			jPanel0 = new JPanel();
+			jPanel0.setLayout(new GroupLayout());
+		}
+		return jPanel0;
+	}
+
+	private JButton getJButton4() {
+		if (jButton4 == null) {
+			jButton4 = new JButton();
+			jButton4.setText("Reset Clip");
+			jButton4.setActionCommand("AddClip");
+			jButton4.addActionListener(this);
+		}
+		return jButton4;
+	}
+
 	class Shutdown extends Thread {
 		public void run() {
 			if (svgCanvas != null) {
@@ -126,10 +131,10 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jCheckBox0 == null) {
 			jCheckBox0 = new JCheckBox();
 			jCheckBox0.setText("Preview SVG output");
-			jCheckBox0.setSelected(true);
-			jCheckBox0.addChangeListener(new ChangeListener() {
+			jCheckBox0.setSelected(false);
+			jCheckBox0.addItemListener(new ItemListener() {
 				@Override
-				public void stateChanged(ChangeEvent e) {
+				public void itemStateChanged(ItemEvent e) {
 					if (itemSelectionListener != null) {
 						itemSelectionListener.setEnabledPreview(jCheckBox0.isSelected());
 						if (jList0 != null) {
@@ -137,35 +142,16 @@ public class mainPanel extends JFrame implements ActionListener {
 							itemSelectionListener.updatePreviewImage(index);
 						}
 					}
+					jButton4.setEnabled(!jCheckBox0.isSelected());
 				}
 			});
 		}
 		return jCheckBox0;
 	}
 
-	@SuppressWarnings("unchecked")
-	private JSVGCanvas getSvgCanvas() {
+	private CustomSVGCanvas getSvgCanvas() {
 		if (svgCanvas == null) {
-			svgCanvas = new JSVGCanvas();
-			
-			svgCanvas.setEnableImageZoomInteractor(true);
-			svgCanvas.setEnablePanInteractor(true);
-			svgCanvas.setEnableZoomInteractor(true);
-			svgCanvas.setEnableRotateInteractor(false);
-			svgCanvas.addMouseWheelListener(new WheelZooming());
-			svgCanvas.getInteractors().add(new AbstractPanInteractor() {
-		    	public boolean startInteraction(InputEvent ie) {
-		    		int mods = ie.getModifiers();
-		            return ie.getID() == MouseEvent.MOUSE_PRESSED && (mods & InputEvent.BUTTON1_MASK) != 0;
-		    	}
-			});
-	
-			svgCanvas.getInteractors().add(new AbstractImageZoomInteractor() {
-				public boolean startInteraction(InputEvent ie) {
-					int mods = ie.getModifiers();
-					return ie.getID() == MouseEvent.MOUSE_PRESSED && (mods & InputEvent.BUTTON1_MASK) != 0;
-				}
-			});
+			svgCanvas = new CustomSVGCanvas();
 		}
 		return svgCanvas;
 	}
@@ -267,6 +253,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private ItemSelectionListener getItemSelectionListener(DefaultListModel fileListModel) {
 		if (itemSelectionListener == null) {
 			itemSelectionListener = new ItemSelectionListener(getCardLayout(), getJPanel4(), getNavigableImagePanel(), getSvgCanvas(), fileListModel);
+			itemSelectionListener.setEnabledPreview(false);
 		}
 		return itemSelectionListener;
 	}
@@ -287,7 +274,8 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanelNorth.setLayout(new BoxLayout(jPanelNorth, BoxLayout.X_AXIS));
 			jPanelNorth.add(getJButton2());
 			jPanelNorth.add(getJCheckBox0());
-			jPanelNorth.add(Box.createHorizontalGlue());
+			jPanelNorth.add(getJButton4());
+			jPanelNorth.add(getJPanel0());
 			jPanelNorth.add(getJButton3());
 		}
 		return jPanelNorth;
@@ -382,6 +370,16 @@ public class mainPanel extends JFrame implements ActionListener {
 			getConfigDialog().setMainPanel(this);
 			getConfigDialog().setLocationRelativeTo(this);
 			getConfigDialog().setVisible(true);
+		} else if (e.getActionCommand().equals("AddClip")) {
+			int index = jList0.getSelectedIndex();
+			if (index == -1) return;
+			ListItem item = (ListItem) jList0.getModel().getElementAt(index);
+			if (item.getClipRect() == null) {
+				item.setClipRect(new Rectangle(0, 0, 500, 500));
+			} else {
+				item.setClipRect(null);
+			}
+			itemSelectionListener.updatePreviewImage(index);
 		}
 	}
 	
@@ -434,67 +432,4 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 			
 	}
-	
-	private class WheelZooming implements MouseWheelListener {
-		boolean isFinished=true;
-		TimerTask task;
-		private Timer timer = new Timer();
-
-		void updateWheelTransform(){
-			if(!isFinished){
-		        AffineTransform pt =  svgCanvas.getPaintingTransform();
-		        if (pt != null) {
-		            AffineTransform rt = (AffineTransform)svgCanvas.getRenderingTransform().clone();
-		            rt.preConcatenate(pt);
-		            svgCanvas.setRenderingTransform(rt);
-		        }
-		        isFinished =true;
-		        task=null;
-			}
-		}
-		
-		void taskStart(){
-			if(task!=null)task.cancel();
-			task=new TimerTask(){
-				@Override
-				public void run() {
-					updateWheelTransform();
-				}
-			};
-			timer.schedule(task, 500);
-		}
-		
-		public void mouseWheelMoved(MouseWheelEvent ev) {
-			try{
-				/*
-				Rectangle rec = svgCanvas.getBounds();
-				double cx = (rec.getCenterX() + ev.getX())/2;
-				double cy = (rec.getCenterY() + ev.getY())/2;
-				*/
-				double cx = ev.getX();
-				double cy = ev.getY();
-	            AffineTransform at = AffineTransform.getTranslateInstance(cx,cy);
-	            if (ev.getWheelRotation() < 0) {
-	            	if((at.getScaleX()*1.15) < Double.MAX_VALUE){
-	    				at.scale(1.15, 1.15);
-	    				at.translate(-cx,-cy);
-	            	}
-				} else {
-	            	if ((at.getScaleX()*0.85) > Double.MIN_VALUE){
-	            		at.scale(0.85, 0.85);
-	            		at.translate(-cx,-cy);
-	            	}
-				}
-				if (isFinished) {
-					svgCanvas.setPaintingTransform(null);
-					isFinished=false;
-				} else {
-					at.concatenate(svgCanvas.getPaintingTransform());
-				}
-				svgCanvas.setPaintingTransform(at);
-				taskStart();
-			} catch (NullPointerException ne){}
-		}
-	}
-	
 }
