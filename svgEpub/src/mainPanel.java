@@ -7,6 +7,9 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
@@ -20,7 +23,9 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JList;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
@@ -63,6 +68,10 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JButton jButton3;
 	private JButton jButton4;
 	private JPanel jPanel0;
+	
+	private JPopupMenu jListPopupMenu;
+	private Rectangle copyClipRectangle = null;
+	
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
 		return properties;
@@ -97,6 +106,23 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanel0.setLayout(new GroupLayout());
 		}
 		return jPanel0;
+	}
+	
+	private JPopupMenu getJListPopupMenu() {
+		if (jListPopupMenu == null) {
+			jListPopupMenu = new JPopupMenu();
+			
+			JMenuItem menuItem1 = new JMenuItem("Copy clip area");
+			menuItem1.setActionCommand("CopyClip");
+			menuItem1.addActionListener(this);
+			jListPopupMenu.add(menuItem1);
+
+			JMenuItem menuItem2 = new JMenuItem("Paste clip area");
+			menuItem2.setActionCommand("PasteClip");
+			menuItem2.addActionListener(this);
+			jListPopupMenu.add(menuItem2);
+		}
+		return jListPopupMenu;
 	}
 
 	private JButton getJButton4() {
@@ -246,6 +272,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		    jList0.addListSelectionListener(getItemSelectionListener(fileListModel));
 		    jList0.addMouseListener(new ListMouseListener(getItemSelectionListener(fileListModel)));
 //		    jList0.setToolTipText("Drop image files here");
+		    jList0.addMouseListener(new PopClickListener());
 		}
 		return jList0;
 	}
@@ -380,6 +407,22 @@ public class mainPanel extends JFrame implements ActionListener {
 				item.setClipRect(null);
 			}
 			itemSelectionListener.updatePreviewImage(index);
+		} else if (e.getActionCommand().equals("CopyClip")) {
+			int index = jList0.getSelectedIndex();
+			if (index == -1) return;
+			ListItem item = (ListItem) jList0.getModel().getElementAt(index);
+			if (item.getClipRect() == null) {
+				copyClipRectangle = null;
+			} else {
+				copyClipRectangle  = new Rectangle(item.getClipRect());
+			}
+		} else if (e.getActionCommand().equals("PasteClip")) {
+			if (jList0.isSelectionEmpty()) return;
+			Object[] items = jList0.getSelectedValues();
+			for (Object item : items) {
+				((ListItem)item).setClipRect(copyClipRectangle);
+			}
+			itemSelectionListener.updatePreviewImage(jList0.getSelectedIndex());
 		}
 	}
 	
@@ -432,4 +475,21 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 			
 	}
+	
+	class PopClickListener extends MouseAdapter {
+	    public void mousePressed(MouseEvent e){
+	        if (e.isPopupTrigger())
+	            doPop(e);
+	    }
+
+	    public void mouseReleased(MouseEvent e){
+	        if (e.isPopupTrigger())
+	            doPop(e);
+	    }
+
+	    private void doPop(MouseEvent e){
+	    	getJListPopupMenu().show(e.getComponent(), e.getX(), e.getY());
+	    }
+	}
+
 }

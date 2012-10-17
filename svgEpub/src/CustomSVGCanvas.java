@@ -256,7 +256,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		rect.setAttributeNS(null, "width", Integer.toString(clipRect.width));
 		rect.setAttributeNS(null, "height", Integer.toString(clipRect.height));
 		rect.setAttributeNS(null, "pointer-events", "fill");
-		rect.setAttributeNS(null, "style", "fill:none;stroke:red; stroke-width:20;"); 
+		rect.setAttributeNS(null, "style", "fill:none;stroke:red; stroke-width:20; stroke-opacity:0.6;"); 
 		
 		((EventTarget) rect).addEventListener("mouseover", overAction, false);
 		((EventTarget) rect).addEventListener("mousedown", downAction, false);
