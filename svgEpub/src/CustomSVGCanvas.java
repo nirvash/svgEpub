@@ -94,7 +94,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	public class OnMoveAction implements EventListener {
 		@Override
 		public void handleEvent(Event ev) {
-//			logger.info("onMove");
+			//logger.info("onMove");
 			DOMMouseEvent dme = (DOMMouseEvent)ev;
 			int nowToX = dme.getClientX();
 			int nowToY = dme.getClientY();
@@ -102,12 +102,15 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 			SVGMatrix mat = ((SVGLocatable)selectedItem).getScreenCTM();
 			mat = mat.inverse();
 			SVGOMPoint dragpt = (SVGOMPoint)pt.matrixTransform(mat);
+			int lineWidthHalf = 20 / 2;
 		
 			if (drag_mode == DRAG_MOVE) {
 				Cursor cur = new Cursor(Cursor.MOVE_CURSOR);
 				setCursor(cur);
 				selectedItem.setAttribute("x",  "" + (dragpt.getX() - initialOffset.getX()));
 				selectedItem.setAttribute("y",  "" + (dragpt.getY() - initialOffset.getY()));
+				fill.setAttribute("x",  "" + (dragpt.getX() - initialOffset.getX() - lineWidthHalf));
+				fill.setAttribute("y",  "" + (dragpt.getY() - initialOffset.getY() - lineWidthHalf));
 			} else if (drag_mode == DRAG_RESIZE_BOTTOM_RIGHT) {
 				Cursor cur = new Cursor(Cursor.SE_RESIZE_CURSOR);
 				setCursor(cur);
@@ -115,6 +118,8 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 				int height = (int) (initialRect.getHeight() + (dragpt.getY() - initialDragPoint.getY()));
 				selectedItem.setAttribute("width", "" + width);
 				selectedItem.setAttribute("height", "" + height);
+				fill.setAttribute("width", "" + (width + lineWidthHalf*2));
+				fill.setAttribute("height", "" + (height + lineWidthHalf*2));
 			}
                                    			
 			ev.stopPropagation();
@@ -124,7 +129,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	public class OnDownAction implements EventListener {
 		@Override
 		public void handleEvent(Event ev) {
-//			logger.info("onDown");
+			//logger.info("onDown");
 			selectedItem = (Element)ev.getTarget();
 			SVGLocatable thisNode = (SVGLocatable)ev.getTarget();
 			DOMMouseEvent dme = (DOMMouseEvent)ev;
@@ -167,6 +172,8 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	protected Rectangle clipRect = null;
 
 	protected Element selectedItem;
+	protected Element fill;
+	
 	protected SVGOMPoint initialDragPoint;
 	protected SVGOMPoint initialOffset;
 	protected Rectangle initialRect;
@@ -249,19 +256,39 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		if (mPreview) return doc;
 		
 		Element svgRootOuter = doc.getDocumentElement();
+		Element g = doc.createElementNS(svgNS, "g");
+		g.setAttributeNS(null, "x", Integer.toString(clipRect.x));
+		g.setAttributeNS(null, "y", Integer.toString(clipRect.y));
+		g.setAttributeNS(null, "width", Integer.toString(clipRect.width));
+		g.setAttributeNS(null, "height", Integer.toString(clipRect.height));
+		g.setAttributeNS(null, "pointer-events", "all");
+		
 		Element rect = doc.createElementNS(svgNS, "rect");
-		rect.setAttribute("id", "clipregion");
+		rect.setAttribute("id", "clipRegion");
 		rect.setAttributeNS(null, "x", Integer.toString(clipRect.x));
 		rect.setAttributeNS(null, "y", Integer.toString(clipRect.y));
 		rect.setAttributeNS(null, "width", Integer.toString(clipRect.width));
 		rect.setAttributeNS(null, "height", Integer.toString(clipRect.height));
 		rect.setAttributeNS(null, "pointer-events", "fill");
-		rect.setAttributeNS(null, "style", "fill:none;stroke:red; stroke-width:20; stroke-opacity:0.6;"); 
+		rect.setAttributeNS(null, "vector-effect", "non-scaling-stroke");
+		rect.setAttributeNS(null, "style", "fill:none;stroke:black; stroke-opacity:1.0; stroke-dasharray: 5 2;");
 		
-		((EventTarget) rect).addEventListener("mouseover", overAction, false);
-		((EventTarget) rect).addEventListener("mousedown", downAction, false);
+		fill = doc.createElementNS(svgNS, "rect");
+		int lineWidthHalf = 20 / 2;
+		fill.setAttributeNS(null, "x", Integer.toString(clipRect.x - lineWidthHalf));
+		fill.setAttributeNS(null, "y", Integer.toString(clipRect.y - lineWidthHalf));
+		fill.setAttributeNS(null, "width", Integer.toString(clipRect.width + lineWidthHalf*2));
+		fill.setAttributeNS(null, "height", Integer.toString(clipRect.height + lineWidthHalf*2));
+		fill.setAttributeNS(null, "pointer-events", "none");
+		fill.setAttributeNS(null, "vector-effect", "non-scaling-stroke");
+		fill.setAttributeNS(null, "style", "fill:none; stroke:red; stroke-opacity:0.6; stroke-width: 20;");
+		
+		((EventTarget) g).addEventListener("mouseover", overAction, false);
+		((EventTarget) g).addEventListener("mousedown", downAction, false);
 
-		svgRootOuter.appendChild(rect);
+		svgRootOuter.appendChild(g);
+		g.appendChild(fill);
+		g.appendChild(rect);
 		return doc;
 	}
 
