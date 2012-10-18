@@ -225,33 +225,29 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 */
 	}
 
-	public void setImage(File file) {
-		Rectangle imageRect = ImageUtil.getImageSize(file);
+	public void setImage(IFile item) {
+		Rectangle imageRect = ImageUtil.getImageSize(item);
 		Rectangle clipRect = mListItem.getClipRect();
 		if (clipRect == null) {
 			clipRect = imageRect;
 		}
-		Document doc = createDocument(clipRect, imageRect, file.toURI().toString());
+		
+		Document doc = createDocument(clipRect, imageRect, item);
 		super.setDocument(doc);
 	}
 	
-	@Override
-	public void setURI(String newURI) {
-		if (newURI == null) {
-			super.setURI(null);
-			return;
-		}
-		
-		Rectangle svgRect = ImageUtil.getSvgSize(newURI);
+	public void setSvg(IFile item) {
+		Rectangle svgRect = ImageUtil.getSvgSize(item);
 		Rectangle clipRect = mListItem.getClipRect();
 		if (clipRect == null) {
 			clipRect = svgRect;
 		}
-		Document doc = createDocument(clipRect, svgRect, newURI);
+		Document doc = createDocument(clipRect, svgRect, item);
 		super.setDocument(doc);
 	}
 	
-	private Document createDocument(Rectangle clipRect, Rectangle imageRect, String imageURI) {
+	private Document createDocument(Rectangle clipRect, Rectangle imageRect, IFile item) {
+		String imageURI = item.getURI();
 		Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, mPreview);
 		if (mPreview) return doc;
 		

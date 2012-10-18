@@ -1,7 +1,9 @@
 import java.awt.CardLayout;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 import javax.swing.DefaultListModel;
@@ -48,43 +50,34 @@ public class ItemSelectionListener implements ListSelectionListener {
 			imagePanel.setImage(null);
 			return;
 		}
-		ListItem item = (ListItem)model.get(index);
-		File file = item.getFile();
-		
-		if (enabledPreview && mainPanel.isImageFile(file) && item.isSelected()) {
-			if (item.getSvgFile() != null) {
-				file = item.getSvgFile();
+		ListItem listItem = (ListItem)model.get(index);
+		IFile item = listItem;
+		String filename = item.getFilename();
+		if (enabledPreview && PathUtil.isRasterFile(filename) && listItem.isSelected()) {
+			File file = null;
+			if (listItem.getSvgFile() != null) {
+				file = listItem.getSvgFile();
+				item = new FileItem(file, listItem.getClipRect());
 			} else {
-				File svgFile = Epub.convertToSvgFromImage(file);
+				File svgFile = Epub.convertToSvgFromImage(item);
 				if (svgFile != null) {
-					item.setSvgFile(svgFile);
-					file = svgFile;
+					listItem.setSvgFile(svgFile);
+					item = new FileItem(svgFile, listItem.getClipRect());
 				}
 			}
 		}
 
 		
-		if (mainPanel.isSvgFile(file)) {
+		if (PathUtil.isSvgFile(item.getFilename())) {
 			cardLayout.last(parent);
-			svgCanvas.setListItem(item);
+			svgCanvas.setListItem(listItem);
 			svgCanvas.setPreview(enabledPreview);
-			svgCanvas.setURI(file.toURI().toString());
+			svgCanvas.setSvg(item);
 		} else {
 			cardLayout.last(parent);
-			svgCanvas.setListItem(item);
+			svgCanvas.setListItem(listItem);
 			svgCanvas.setPreview(enabledPreview);
-			svgCanvas.setImage(file);
-			
-			/*
-			cardLayout.first(parent);
-			BufferedImage image = null;
-			try {
-				image = ImageIO.read(file);
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			imagePanel.setImage(image);
-			*/
+			svgCanvas.setImage(item);
 		}
 	}
 }

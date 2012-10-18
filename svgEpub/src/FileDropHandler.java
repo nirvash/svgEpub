@@ -78,10 +78,10 @@ public class FileDropHandler extends TransferHandler {
 			List<File> values = (List<File>)transferable.getTransferData(DataFlavor.javaFileListFlavor);
             Collections.sort(values, new FileComperator());
             for (File value : values) {
-            	if (mainPanel.canHandle(value)) {
-	            	int idx = index++;
-	            	listModel.add(idx, new ListItem(value));
-	            	// target.addSelectionInterval(idx, idx);
+            	if (PathUtil.isImageFile(value)) {
+	            	listModel.add(index++, new ListItem(value));
+            	} else if (PathUtil.isZipFile(value)) {
+            		index = addZipFileItems(index, value);
             	}
             }
         } catch (UnsupportedFlavorException e) {
@@ -94,6 +94,10 @@ public class FileDropHandler extends TransferHandler {
         return true;
 	}
 	
+	private int addZipFileItems(int index, File value) {
+		return index;
+	}
+
 	private boolean handleMoveListItem(TransferSupport support) {
 		JList target = (JList)support.getComponent();
 		JList.DropLocation location = (JList.DropLocation)support.getDropLocation();

@@ -1,4 +1,5 @@
 import java.awt.Rectangle;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -41,21 +42,25 @@ public class ImageUtil {
 		Loader.load(opencv_objdetect.class);
 	}
 
-	public static File convertToBitmap(File imageFile, Rectangle imageSize) {
+/*
+ * 	public static File convertToBitmap(File imageFile, Rectangle imageSize) {
+ */
+	
+	public static File convertToBitmap(IFile item, Rectangle imageSize) {
 		String path = getTmpDirectory();
-		String tmpFilename = path + "tmp" + getExtension(imageFile);
+		String tmpFilename = path + "tmp" + PathUtil.getExtension(item.getFilename());
 		File tmpFile = new File(tmpFilename);
 		tmpFile.deleteOnExit();
 		File tmpOutFile = new File(path + "tmpout.bmp");
 		tmpOutFile.deleteOnExit();
 		try {
-			copyFile(imageFile, tmpFile);
+			copyFile(item.getInputStream(), tmpFile);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
 		}
 		
-		String outFilename = path + imageFile.getName();
+		String outFilename = path + item.getFilename();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");
 		
 		IplImage image_source = cvLoadImage(tmpFile.getPath());
@@ -248,42 +253,48 @@ public class ImageUtil {
 		}
 		return path;
 	}
-	
-	public static void copyFile(File source, File dest) throws IOException {
+
+	public static void copyFile(InputStream source, File dest) throws IOException {
 		if (!dest.exists()) {
 			dest.createNewFile();
 		}
-		InputStream in = null;
 		OutputStream out = null;
 		try {
-			in = new FileInputStream(source);
 			out = new FileOutputStream(dest);
 
 			// Transfer bytes from in to out
 			byte[] buf = new byte[1024];
 			int len;
-			while ((len = in.read(buf)) > 0) {
+			while ((len = source.read(buf)) > 0) {
 				out.write(buf, 0, len);
 			}
 		} finally {
-			if (in != null) {
-				in.close();
+			if (source != null) {
+				source.close();
 			}
 			if (out != null) {
 				out.close();
 			}
 		}
 	}
+	
+	public static void copyFile(File source, File dest) throws IOException {
+		try {
+			FileInputStream in = new FileInputStream(source);
+			copyFile(in, dest);
+		} catch (Exception e) {
+			
+		}
+	}
 
-	public static Rectangle getImageSize(File file) {
-    	String extension = PathUtil.getExtension(file.getName());
+	public static Rectangle getImageSize(IFile item) {
+    	String extension = PathUtil.getExtension(item.getFilename());
     	
     	Iterator<ImageReader> readers = ImageIO.getImageReadersBySuffix(extension);
         ImageReader imageReader = (ImageReader) readers.next();
     	Rectangle rect = new Rectangle();
-    	FileInputStream stream = null;
 		try {
-			stream = new FileInputStream(file);
+			InputStream stream = item.getInputStream();
 	        ImageInputStream imageInputStream = ImageIO.createImageInputStream(stream);
 	        imageReader.setInput(imageInputStream, false);
 	        rect.width = imageReader.getWidth(0);
@@ -292,6 +303,30 @@ public class ImageUtil {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return rect;
+	}
+
+	public static Rectangle getSvgSize(IFile item) {
+		Rectangle rect = new Rectangle(0, 0, 584, 754);
+		String parser = XMLResourceDescriptor.getXMLParserClassName();
+		SAXSVGDocumentFactory f = new SAXSVGDocumentFactory(parser);
+		try {
+			Document doc = f.createDocument(item.getFilename(), item.getInputStream());
+			Element svgRoot = doc.getDocumentElement();
+			
+			Attr width = svgRoot.getAttributeNodeNS(null, "width");		
+			if (width != null) {
+				rect.width = parse(width.getValue());
+			}
+	
+			Attr height = svgRoot.getAttributeNodeNS(null, "height");
+			if (height != null) {
+				rect.height = parse(height.getValue());
+			}
+		} catch (Exception e) {
+			
+		}
+		
 		return rect;
 	}
 

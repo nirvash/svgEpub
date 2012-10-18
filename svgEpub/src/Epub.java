@@ -108,23 +108,23 @@ public class Epub {
 			}
 			String pageName = String.format("page_%04d", page);
 			String pageFile = pageName + ".xhtml";
-			File file = item.getFile();
-			if (mainPanel.isSvgFile(file)) {
-				createSvgPage(book, template, pageName, pageFile, file, item.getClipRect());
+			if (PathUtil.isSvgFile(item.getFilename())) {
+				createSvgPage(book, template, pageName, pageFile, item);
 				page++;
-			} else if (mainPanel.isImageFile(file)) {
+			} else if (PathUtil.isRasterFile(item.getFilename())) {
 				if (item.isSelected()) {
-					File svgFile = convertToSvgFromImage(file);
+					File svgFile = convertToSvgFromImage(item);
 					if (svgFile != null) {
-						createSvgPage(book, template, pageName, pageFile, svgFile, item.getClipRect());
+						IFile svgItem = new FileItem(svgFile, item.getClipRect());
+						createSvgPage(book, template, pageName, pageFile, svgItem);
 						svgFile.delete();
 						page++;
 					} else {
-						createImagePage(book, template, pageName, pageFile, file, item.getClipRect());
+						createImagePage(book, template, pageName, pageFile, item);
 						page++;
 					}
 				} else {
-					createImagePage(book, template, pageName, pageFile, file, item.getClipRect());
+					createImagePage(book, template, pageName, pageFile, item);
 					page++;
 				}
 			}
@@ -132,15 +132,15 @@ public class Epub {
 		return true;
 	}
 	
-	static public File convertToSvgFromImage(File imageFile) {
+	static public File convertToSvgFromImage(IFile item) {
 		File bitmapFile = null;
 		File pnmFile = null;
 		Rectangle imageSize = new Rectangle();
 		try {
 			if (properties.getProperty("enable_opencv", "no").equals("yes")) {
-				pnmFile = ImageUtil.convertToBitmap(imageFile, imageSize);
+				pnmFile = ImageUtil.convertToBitmap(item, imageSize);
 			} else {
-				bitmapFile = convertToBitmap(imageFile, imageSize);
+				bitmapFile = convertToBitmap(item, imageSize);
 				if (bitmapFile == null || !bitmapFile.exists()) return null;
 			
 				pnmFile = convertToPnm(bitmapFile);
@@ -155,14 +155,14 @@ public class Epub {
 	}
 
 
-	static private File convertToBitmap(File file, Rectangle imageSize) {
+	static private File convertToBitmap(IFile item, Rectangle imageSize) {
 		String path = getTmpDirectory();
-		String outFilename = path + file.getName();
+		String outFilename = path + item.getFilename();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");		
 		try {
-			FileInputStream in = new FileInputStream(file);
-			BufferedImage image = ImageIO.read(in);
-			in.close();
+			InputStream stream = item.getInputStream();
+			BufferedImage image = ImageIO.read(stream);
+			stream.close();
 
 			if (imageSize != null) {
 				imageSize.width = image.getWidth();
@@ -276,13 +276,13 @@ public class Epub {
 	}
 
 	private void createImagePage(Book book, String template, String pageName,
-			String pageFile, File file, Rectangle clipRect)  {
+			String pageFile, IFile item)  {
 		try {
-	    	String extension = PathUtil.getExtension(file.getName());
+	    	String extension = PathUtil.getExtension(item.getFilename());
 	    	String imageURI = "images/" + pageName + "." + extension;
 	    	
-			Rectangle imageRect = ImageUtil.getImageSize(file);
-			Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true);
+			Rectangle imageRect = ImageUtil.getImageSize(item);
+			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true);
 			doc.normalizeDocument();
 
 			String svgTag = serializeDocument(doc);
@@ -291,7 +291,7 @@ public class Epub {
 			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
 			book.addSection(pageName, new Resource(bi, pageFile));
 			
-	        FileInputStream stream = new FileInputStream(file);	    	
+			InputStream stream = item.getInputStream();
 			book.getResources().add(new Resource(stream, imageURI));
 			stream.close();
 		} catch (Exception e) {
@@ -299,17 +299,17 @@ public class Epub {
 		}
 		
 	}
-	
+
 	
 	private void createSvgPage(Book book, String template, String pageName,
-			String pageFile, File file, Rectangle clipRect) throws IOException,
+			String pageFile, IFile item) throws IOException,
 			UnsupportedEncodingException {
 		try {
-	    	String extension = PathUtil.getExtension(file.getName());
+	    	String extension = PathUtil.getExtension(item.getFilename());
 	    	String imageURI = "images/" + pageName + "." + extension;
         
-	    	Rectangle imageRect = ImageUtil.getSvgSize(file.toURI().toString());
-			Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true);
+	    	Rectangle imageRect = ImageUtil.getSvgSize(item);
+			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true);
 			doc.normalizeDocument();
 
 			String svgTag = serializeDocument(doc);
@@ -319,7 +319,7 @@ public class Epub {
 			book.addSection(pageName, new Resource(bi, pageFile));
 			bi.close();
 
-			FileInputStream stream = new FileInputStream(file);	    	
+			InputStream stream = item.getInputStream();
 			book.getResources().add(new Resource(stream, imageURI));
 			stream.close();
 		} catch (Exception e) {
@@ -420,12 +420,11 @@ public class Epub {
 			return;
 		}
 		
-		File dir = fileList.get(0).getFile().getParentFile();
-		if (dir == null) {
+		String dirName = fileList.get(0).getDirName();
+		if (dirName == null) {
 			return;
 		}
 	
-		String dirName = dir.getName();
 		this.outputFilename = dirName + ".epub";
 		int titleGroup = 0;
 		int authorGroup = 0;

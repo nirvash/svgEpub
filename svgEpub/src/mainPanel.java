@@ -437,26 +437,8 @@ public class mainPanel extends JFrame implements ActionListener {
 		return configDialog;
 	}
 	
-	static boolean canHandle(File file) {
-		return isSvgFile(file) || isImageFile(file);
-	}
 
 
-	static boolean isSvgFile(File file) {
-		return file.isFile() && file.canRead() && hasExtension(file, ".svg");
-	}
-	
-	private static boolean hasExtension(File file, String ext) {
-		return file.getName().toLowerCase().endsWith(ext);
-	}
-
-	static boolean isImageFile(File file) {
-		return file.isFile() && file.canRead() && 
-				(hasExtension(file, ".jpg") ||
-				 hasExtension(file, ".jpeg") ||
-			     hasExtension(file, ".gif") ||
-			     hasExtension(file, ".png"));
-	}
 
 	public void updateConfig() {
 		DefaultListModel model = (DefaultListModel) jList0.getModel();
