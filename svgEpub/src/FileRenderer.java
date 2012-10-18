@@ -85,7 +85,7 @@ public class FileRenderer extends JPanel implements ListCellRenderer {
 		*/
 	    
 		label.setText(value.toString());
-		label.setIcon(FileSystemView.getFileSystemView().getSystemIcon(item.getFile()));
+//		label.setIcon(FileSystemView.getFileSystemView().getSystemIcon(item.getFile()));
 		return this;
 /*
 		Component c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);

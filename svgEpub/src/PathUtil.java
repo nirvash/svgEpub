@@ -10,6 +10,10 @@ public class PathUtil {
 	static boolean isImageFile(File file) {
 		return isSvgFile(file) || isRasterFile(file);
 	}
+	
+	static boolean isImageFile(String filepath) {
+		return isSvgFile(filepath) || isRasterFile(filepath);
+	}
 
 	static boolean isRasterFile(String filename) {
 		return  hasExtension(filename, ".jpg")  ||
@@ -41,5 +45,14 @@ public class PathUtil {
 	public static boolean isZipFile(File file) {
 		return file.isFile() && file.canRead() &&
 				hasExtension(file, ".zip");
+	}
+	
+	public static String getTmpDirectory() {
+		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
+		File tmp = new File(path);
+		if (!tmp.exists()) {
+			tmp.mkdirs();
+		}
+		return path;
 	}
 }

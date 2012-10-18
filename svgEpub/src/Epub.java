@@ -156,7 +156,7 @@ public class Epub {
 
 
 	static private File convertToBitmap(IFile item, Rectangle imageSize) {
-		String path = getTmpDirectory();
+		String path = PathUtil.getTmpDirectory();
 		String outFilename = path + item.getFilename();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");		
 		try {
@@ -184,17 +184,8 @@ public class Epub {
 	}
 	
 
-	static private String getTmpDirectory() {
-		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
-		File tmp = new File(path);
-		if (!tmp.exists()) {
-			tmp.mkdirs();
-		}
-		return path;
-	}
-
 	static private File convertToPnm(File file) {
-		String path = getTmpDirectory();
+		String path = PathUtil.getTmpDirectory();
 		String pnmFile = path + file.getName();
 		pnmFile = pnmFile.replaceAll("\\.[^.]*$", ".pnm");
 		File mkbitmap = getMkbitmapFile();
@@ -238,7 +229,7 @@ public class Epub {
 
 
 	static private File convertToSvg(File file, Rectangle imageSize) {
-		String path = getTmpDirectory();		
+		String path = PathUtil.getTmpDirectory();		
 		String svgFile = path + file.getName();
 		svgFile = svgFile.replaceAll("\\.[^.]*$", ".svg");
 		File potrace = getPotraceFile();

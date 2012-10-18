@@ -31,5 +31,6 @@
 	<classpathentry kind="lib" path="lib/batik-transcoder.jar"/>
 	<classpathentry kind="lib" path="lib/js.jar"/>
 	<classpathentry kind="lib" path="lib/javacv-windows-x86_64.jar"/>
+	<classpathentry kind="lib" path="lib/commons-compress-1.4.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

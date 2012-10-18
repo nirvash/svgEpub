@@ -3,7 +3,9 @@ import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 
 import javax.activation.ActivationDataFlavor;
@@ -12,6 +14,9 @@ import javax.swing.DefaultListModel;
 import javax.swing.JComponent;
 import javax.swing.JList;
 import javax.swing.TransferHandler;
+
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 
 
 public class FileDropHandler extends TransferHandler {
@@ -81,7 +86,7 @@ public class FileDropHandler extends TransferHandler {
             	if (PathUtil.isImageFile(value)) {
 	            	listModel.add(index++, new ListItem(value));
             	} else if (PathUtil.isZipFile(value)) {
-            		index = addZipFileItems(index, value);
+            		index = addZipFileItems(listModel, index, value);
             	}
             }
         } catch (UnsupportedFlavorException e) {
@@ -94,7 +99,23 @@ public class FileDropHandler extends TransferHandler {
         return true;
 	}
 	
-	private int addZipFileItems(int index, File value) {
+	private int addZipFileItems(DefaultListModel listModel, int index, File value) {
+		ZipFile zf;
+		try {
+			zf = new ZipFile(value, null);
+			Enumeration<? extends ZipArchiveEntry> e = zf.getEntries();
+			while (e.hasMoreElements()) {
+				ZipArchiveEntry ze = e.nextElement();
+				if (ze.isDirectory()) continue;				
+				if (!PathUtil.isImageFile(ze.getName())) continue;
+				listModel.add(index++, new ListItem(value, zf, ze.getName()));
+			}
+// TODO
+//			zf.close();
+		} catch (Exception e) {
+			return index;
+		}
+		
 		return index;
 	}
 
