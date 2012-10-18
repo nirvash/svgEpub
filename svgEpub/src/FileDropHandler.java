@@ -2,6 +2,7 @@ import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
@@ -87,6 +88,8 @@ public class FileDropHandler extends TransferHandler {
 	            	listModel.add(index++, new ListItem(value));
             	} else if (PathUtil.isZipFile(value)) {
             		index = addZipFileItems(listModel, index, value);
+            	} else if (value.isDirectory()) {
+            		index = addDirectoryItems(listModel, index, value);
             	}
             }
         } catch (UnsupportedFlavorException e) {
@@ -99,6 +102,21 @@ public class FileDropHandler extends TransferHandler {
         return true;
 	}
 	
+	private int addDirectoryItems(DefaultListModel listModel, int index,
+			File dir) {
+		FileFilter filter = new FileFilter() {
+			@Override
+			public boolean accept(File pathname) {
+				return PathUtil.isImageFile(pathname);
+			}
+		};
+		File[] files = PathUtil.getFiles(dir, filter);
+		for (File file : files) {
+        	listModel.add(index++, new ListItem(file));
+		}
+		return index;
+	}
+
 	private int addZipFileItems(DefaultListModel listModel, int index, File value) {
 		ZipFile zf;
 		try {
@@ -110,7 +128,7 @@ public class FileDropHandler extends TransferHandler {
 				if (!PathUtil.isImageFile(ze.getName())) continue;
 				listModel.add(index++, new ListItem(value, zf, ze.getName()));
 			}
-// TODO
+// TODO : close if all items are removed.
 //			zf.close();
 		} catch (Exception e) {
 			return index;
