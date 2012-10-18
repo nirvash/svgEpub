@@ -32,8 +32,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-import org.dyno.visual.swing.layouts.GroupLayout;
-
 //VS4E -- DO NOT REMOVE THIS LINE!
 public class mainPanel extends JFrame implements ActionListener {
 
@@ -103,7 +101,6 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel getJPanel0() {
 		if (jPanel0 == null) {
 			jPanel0 = new JPanel();
-			jPanel0.setLayout(new GroupLayout());
 		}
 		return jPanel0;
 	}
