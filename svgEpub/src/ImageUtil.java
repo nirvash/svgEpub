@@ -14,6 +14,7 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
+import javax.naming.InitialContext;
 
 import org.apache.batik.css.parser.ParseException;
 import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
@@ -38,8 +39,10 @@ import static com.googlecode.javacv.cpp.opencv_highgui.*;
 public class ImageUtil {
 	private static final String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 	
-	static {
-		Loader.load(opencv_objdetect.class);
+	public static void initialize(boolean isOpencvEnabled) {
+	    if (isOpencvEnabled) {
+	        Loader.load(opencv_objdetect.class);
+	    }
 	}
 
 /*

@@ -95,6 +95,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		add(getJPanel1());
 		setSize(640, 452);
 		
+		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 	}
 	
