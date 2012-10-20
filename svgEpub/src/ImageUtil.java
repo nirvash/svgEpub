@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Iterator;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +18,7 @@ import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import javax.naming.InitialContext;
+import javax.swing.JOptionPane;
 
 import org.apache.batik.css.parser.ParseException;
 import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
@@ -57,22 +59,36 @@ public class ImageUtil {
 	
 	public static File convertToBitmap(IFile item, Rectangle imageSize) {
 		String path = getTmpDirectory();
-		String tmpFilename = path + "tmp" + PathUtil.getExtension(item.getFilename());
+		String tmpFilename = path + UUID.randomUUID() + "." + PathUtil.getExtension(item.getFilename());
 		File tmpFile = new File(tmpFilename);
 		tmpFile.deleteOnExit();
 		File tmpOutFile = new File(path + "tmpout.bmp");
 		tmpOutFile.deleteOnExit();
-		try {
-			copyFile(item.getInputStream(), tmpFile);
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
 		
 		String outFilename = path + item.getFilename();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");
+		IplImage image_source;
 		
-		IplImage image_source = cvLoadImage(tmpFile.getPath());
+		try {
+			copyFile(item.getInputStream(), tmpFile);
+			image_source = cvLoadImage(tmpFile.getPath());
+			if (image_source == null) {
+				// workaround: Retry file copy (Sometimes it fails to decode rar archive?)
+				tmpFile.delete();
+				copyFile(item.getInputStream(), tmpFile);
+				image_source = cvLoadImage(tmpFile.getPath());
+				if (image_source == null) {
+					JOptionPane.showMessageDialog(null, "Failed to convert " + item.getFilename());
+					return null;
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		} finally {
+			tmpFile.delete();
+		}
+		
 		CvSize size_source = image_source.cvSize();
 		
 		// Color detection

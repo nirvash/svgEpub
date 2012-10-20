@@ -105,6 +105,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			jButton5.setText("Auto Clip");
 			jButton5.setActionCommand("AutoClip");
 			jButton5.addActionListener(this);
+			jButton5.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
 		}
 		return jButton5;
 	}
@@ -466,7 +467,8 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (itemSelectionListener != null) {
 			itemSelectionListener.updatePreviewImage(getJList0().getSelectedIndex());
 		}
-		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
+		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
+		jButton5.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
 	}
 	
 	class PopClickListener extends MouseAdapter {
