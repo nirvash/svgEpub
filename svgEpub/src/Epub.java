@@ -43,7 +43,9 @@ import nl.siegmann.epublib.util.StringUtil;
 public class Epub {
 	private ArrayList<ListItem> fileList;
 	private String title;
+	private String titleFileAs;
 	private String author;
+	private String authorFileAs;
 	private String path;
 	private String outputFilename;
 	private ProgressMonitor monitor;
@@ -77,7 +79,10 @@ public class Epub {
 		try {
 			Book book = new Book();
 			book.getMetadata().addTitle(getTitle());
-			book.getMetadata().addAuthor(new Author(getAuthor(), ""));
+			book.getMetadata().setTitleFileAs(getTitleFileAs());
+			Author auth = new Author(getAuthor());
+			auth.setFileAs(getAuthorFileAs());
+			book.getMetadata().addAuthor(auth);
 			book.getMetadata().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			book.getSpine().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			if (!createPages(book, fileList, monitor)) {
@@ -92,6 +97,22 @@ public class Epub {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}		
+	}
+
+	public String getAuthorFileAs() {
+		return authorFileAs;
+	}
+	
+	public void setAuthorFileAs(String authorFileAs) {
+		this.authorFileAs = authorFileAs;
+	}
+
+	public String getTitleFileAs() {
+		return titleFileAs;
+	}
+	
+	public void setTitleFileAs(String titleFileAs) {
+		this.titleFileAs = titleFileAs;
 	}
 
 	private boolean createPages(Book book, ArrayList<ListItem> list, ProgressMonitor monitor) throws IOException {

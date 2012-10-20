@@ -16,7 +16,6 @@ import java.awt.event.ComponentListener;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Properties;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -51,11 +50,15 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private JTextField jTextField2;
 	private JLabel jLabel3;
 	private JTextField jTextField3;
+	private JLabel jLabel4;
+	private JTextField jTextField4;
+	private JLabel jLabel5;
+	private JTextField jTextField5;
+
+	
 	private Epub epubWriter = new Epub();
-	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
-	
 	private CustomProperties properties;
-	
+	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
 	public SaveDialog(Window parent) {
 		super(parent);
 		initComponents();
@@ -145,8 +148,8 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		setForeground(Color.black);
 		add(getJPanel0(), BorderLayout.SOUTH);
 		add(getJPanel2(), BorderLayout.CENTER);
-		setSize(475, 221);
 		addComponentListener(this);
+		setSize(475, 304);
 	}
 
 	private JTextField getJTextField3() {
@@ -166,6 +169,43 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		}
 		return jLabel3;
 	}
+	
+	private JTextField getJTextField4() {
+		if (jTextField4 == null) {
+			jTextField4 = new JTextField();
+			jTextField4.setText("");
+			jTextField4.setMinimumSize(new Dimension(4, 30));
+			jTextField4.setPreferredSize(new Dimension(63, 30));
+		}
+		return jTextField4;
+	}
+
+	private JLabel getJLabel5() {
+		if (jLabel5 == null) {
+			jLabel5 = new JLabel();
+			jLabel5.setText("Author Yomi");
+		}
+		return jLabel5;
+	}
+
+	private JTextField getJTextField5() {
+		if (jTextField5 == null) {
+			jTextField5 = new JTextField();
+			jTextField5.setText("");
+			jTextField5.setMinimumSize(new Dimension(4, 30));
+			jTextField5.setPreferredSize(new Dimension(63, 30));
+		}
+		return jTextField5;
+	}
+
+	private JLabel getJLabel4() {
+		if (jLabel4 == null) {
+			jLabel4 = new JLabel();
+			jLabel4.setText("Title Yomi");
+		}
+		return jLabel4;
+	}
+
 
 	private JTextField getJTextField2() {
 		if (jTextField2 == null) {
@@ -261,13 +301,22 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 			addGrid(jPanel2, getJLabel0(), 		0, 0, 0.0f);
 			addGrid(jPanel2, getJTextField0(), 	1, 0, 1.0f);
 			addGrid(jPanel2, getJButton2(), 	2, 0, 0.0f);
+			
 			addGrid(jPanel2, getJLabel1(), 		0, 1, 0.0f);
 			addGrid(jPanel2, getJTextField1(),	1, 1, 1.0f);
 			addGrid(jPanel2, getJButton3(),		2, 1, 0.0f);
-			addGrid(jPanel2, getJLabel2(),		0, 2, 0.0f);
-			addGrid(jPanel2, getJTextField2(),	1, 2, 1.0f);
-			addGrid(jPanel2, getJLabel3(),		0, 3, 0.0f);
-			addGrid(jPanel2, getJTextField3(),	1, 3, 1.0f);
+
+			addGrid(jPanel2, getJLabel4(),		0, 2, 0.0f);
+			addGrid(jPanel2, getJTextField4(),	1, 2, 1.0f);
+
+			addGrid(jPanel2, getJLabel2(),		0, 3, 0.0f);
+			addGrid(jPanel2, getJTextField2(),	1, 3, 1.0f);
+			
+			addGrid(jPanel2, getJLabel5(),		0, 4, 0.0f);
+			addGrid(jPanel2, getJTextField5(),	1, 4, 1.0f);
+
+			addGrid(jPanel2, getJLabel3(),		0, 5, 0.0f);
+			addGrid(jPanel2, getJTextField3(),	1, 5, 1.0f);
 		}
 		return jPanel2;
 	}
@@ -379,7 +428,9 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private void save() {
 		String path = jTextField0.getText() + "\\" + jTextField3.getText();
 		epubWriter.setTitle(jTextField1.getText());
+		epubWriter.setTitleFileAs(jTextField4.getText());
 		epubWriter.setAuthor(jTextField2.getText());
+		epubWriter.setAuthorFileAs(jTextField5.getText());
 		epubWriter.setPath(path);
 		ProgressMonitor monitor = new ProgressMonitor(this, "Saving", "Generating epub file...", 0, epubWriter.getTotalPage());
 		monitor.setMillisToDecideToPopup(0);
