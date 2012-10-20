@@ -11,8 +11,10 @@ Download
 ========
 
 Version 1.0
-
-* [nirvash-svgEpub-version-1.0-0.zip](https://github.com/nirvash/svgEpub/zipball/version-1.0)
+* Binary Archive
+ * [svgEpub-version-1.0-0.zip](https://github.com/downloads/nirvash/svgEpub/svgEpub-1.0-0.zip)
+* Source archive
+ * [nirvash-svgEpub-version-1.0-0.zip](https://github.com/nirvash/svgEpub/zipball/version-1.0)
 
 Install
 ========
