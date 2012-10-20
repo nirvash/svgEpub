@@ -9,7 +9,6 @@ import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
@@ -70,6 +69,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPopupMenu jListPopupMenu;
 	private Rectangle copyClipRectangle = null;
 	
+	private JButton jButton5;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
 		return properties;
@@ -99,6 +99,16 @@ public class mainPanel extends JFrame implements ActionListener {
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 	}
 	
+	private JButton getJButton5() {
+		if (jButton5 == null) {
+			jButton5 = new JButton();
+			jButton5.setText("Auto Clip");
+			jButton5.setActionCommand("AutoClip");
+			jButton5.addActionListener(this);
+		}
+		return jButton5;
+	}
+
 	private JPanel getJPanel0() {
 		if (jPanel0 == null) {
 			jPanel0 = new JPanel();
@@ -127,7 +137,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jButton4 == null) {
 			jButton4 = new JButton();
 			jButton4.setText("Reset Clip");
-			jButton4.setActionCommand("AddClip");
+			jButton4.setActionCommand("ResetClip");
 			jButton4.addActionListener(this);
 		}
 		return jButton4;
@@ -300,6 +310,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanelNorth.add(getJButton2());
 			jPanelNorth.add(getJCheckBox0());
 			jPanelNorth.add(getJButton4());
+			jPanelNorth.add(getJButton5());
 			jPanelNorth.add(getJPanel0());
 			jPanelNorth.add(getJButton3());
 		}
@@ -395,15 +406,17 @@ public class mainPanel extends JFrame implements ActionListener {
 			getConfigDialog().setMainPanel(this);
 			getConfigDialog().setLocationRelativeTo(this);
 			getConfigDialog().setVisible(true);
-		} else if (e.getActionCommand().equals("AddClip")) {
+		} else if (e.getActionCommand().equals("ResetClip")) {
 			int index = jList0.getSelectedIndex();
 			if (index == -1) return;
 			ListItem item = (ListItem) jList0.getModel().getElementAt(index);
-			if (item.getClipRect() == null) {
-				item.setClipRect(new Rectangle(0, 0, 500, 500));
-			} else {
-				item.setClipRect(null);
-			}
+			item.setClipRect(null);
+			itemSelectionListener.updatePreviewImage(index);
+		} else if (e.getActionCommand().equals("AutoClip")) {
+			int index = jList0.getSelectedIndex();
+			if (index == -1) return;
+			ListItem item = (ListItem) jList0.getModel().getElementAt(index);
+			item.setClipRect(ImageUtil.getContentArea(item));
 			itemSelectionListener.updatePreviewImage(index);
 		} else if (e.getActionCommand().equals("CopyClip")) {
 			int index = jList0.getSelectedIndex();
@@ -453,7 +466,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (itemSelectionListener != null) {
 			itemSelectionListener.updatePreviewImage(getJList0().getSelectedIndex());
 		}
-			
+		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
 	}
 	
 	class PopClickListener extends MouseAdapter {

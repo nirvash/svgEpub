@@ -1,4 +1,6 @@
+import java.awt.Color;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -20,6 +22,9 @@ import org.apache.batik.css.parser.ParseException;
 import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
 import org.apache.batik.dom.svg.SVGDOMImplementation;
 import org.apache.batik.dom.util.XLinkSupport;
+import org.apache.batik.transcoder.TranscoderInput;
+import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.image.PNGTranscoder;
 import org.apache.batik.util.XMLResourceDescriptor;
 import org.w3c.dom.Attr;
 import org.w3c.dom.DOMImplementation;
@@ -29,6 +34,7 @@ import org.w3c.dom.events.EventTarget;
 
 import com.googlecode.javacpp.BytePointer;
 import com.googlecode.javacpp.Loader;
+import com.googlecode.javacv.cpp.opencv_core.CvRect;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 import com.googlecode.javacv.cpp.opencv_objdetect;
 
@@ -405,5 +411,109 @@ public class ImageUtil {
 			svgRootOuter.appendChild(image);
 		}
 		return doc;
+	}
+
+	public static Rectangle getContentArea(IFile item) {
+		Rectangle result = new Rectangle();
+		String tmpFilename = "";
+		try {
+			if (PathUtil.isRasterFile(item.getFilename())) {
+				String path = getTmpDirectory();
+				tmpFilename = path + "tmp" + PathUtil.getExtension(item.getFilename());
+				File tmpFile = new File(tmpFilename);
+				tmpFile.deleteOnExit();
+				try {
+					copyFile(item.getInputStream(), tmpFile);
+				} catch (IOException e) {
+					e.printStackTrace();
+					return null;
+				}
+			} else {
+				String path = getTmpDirectory();
+				tmpFilename = path + "tmp.png";
+				saveAsPNG(item, tmpFilename);
+			}
+
+			IplImage src_image = cvLoadImage(tmpFilename);
+			IplImage gray_image = cvCreateImage(cvGetSize(src_image), IPL_DEPTH_8U, 1);
+			cvCvtColor(src_image, gray_image, CV_BGR2GRAY);
+			
+			IplImage bi_image = cvCreateImage(cvGetSize(gray_image), IPL_DEPTH_8U, 1);
+			cvThreshold(gray_image, bi_image, 0, 255, CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+/*
+			cvAdaptiveThreshold( gray_image , bi_image, 255,
+					 CV_ADAPTIVE_THRESH_MEAN_C,
+					 CV_THRESH_BINARY_INV, 31 , 5 );
+*/
+			CvMemStorage storage = CvMemStorage.create();
+			CvSeq contours = new CvContour();
+			int count = cvFindContours(bi_image, storage, contours, Loader.sizeof(CvContour.class), CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+			float scale = (float)bi_image.width() / 1600;
+			boolean isFirst = true;
+			while (contours != null && !contours.isNull()) {
+                if (contours.elem_size() > 0) {
+                	CvRect cr = cvBoundingRect(contours, 1);
+                	Rectangle r = new Rectangle(cr.x(), cr.y(), cr.width(), cr.height());
+                	if (r.width > 4.0*scale || r.height > 4.0*scale) {
+	                	if (isFirst) {
+	                		result.setBounds(r);
+	                		isFirst = false;
+	                	} else {
+	                		result.add(r);
+	                	}
+                	}
+                    CvSeq points = cvApproxPoly(contours, Loader.sizeof(CvContour.class),
+                            storage, CV_POLY_APPROX_DP, cvContourPerimeter(contours)*0.02, 0);
+                    cvDrawContours(src_image, points, CvScalar.BLUE, CvScalar.BLUE, -1, 1, CV_AA);
+                }
+                contours = contours.h_next();
+            }
+
+			cvReleaseImage(src_image);
+			cvReleaseImage(gray_image);
+			cvReleaseImage(bi_image);
+			
+//			cvClearMemStorage(storage);
+//			cvReleaseMemStorage(storage);
+//			storage.release();
+//			cvReleaseMemStorage(contours.storage());
+			storage.release();
+
+		//	result = null;
+		} catch (Exception e) {
+			e.printStackTrace();
+			return null;
+		}
+		return result;
+	}
+
+	private static void saveAsPNG(IFile item, String filepath) {
+		try {
+			PNGTranscoder t = new PNGTranscoder();
+			InputStream stream = item.getInputStream();
+			TranscoderInput input = new TranscoderInput(stream);
+			File outFile = new File(filepath);
+			outFile.deleteOnExit();
+			OutputStream ostream = new FileOutputStream(outFile);
+			TranscoderOutput output = new TranscoderOutput(ostream);
+			
+	        Rectangle rect = ImageUtil.getSvgSize(item);
+	        t.addTranscodingHint(PNGTranscoder.KEY_WIDTH, new Float(rect.width));
+	        t.addTranscodingHint(PNGTranscoder.KEY_HEIGHT, new Float(rect.height));
+	        // Set the region.
+	        t.addTranscodingHint(PNGTranscoder.KEY_AOI, rect);
+
+	        t.addTranscodingHint(PNGTranscoder.KEY_FORCE_TRANSPARENT_WHITE, true);
+	        t.addTranscodingHint(PNGTranscoder.KEY_BACKGROUND_COLOR, Color.white); 
+	        
+			t.transcode(input, output);
+			
+			ostream.flush();
+			ostream.close();
+			stream.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }

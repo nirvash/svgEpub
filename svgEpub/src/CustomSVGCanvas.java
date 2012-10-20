@@ -127,22 +127,37 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 				Cursor cur = new Cursor(cursorTable[drag_mode]);
 				setCursor(cur);
 				switch (drag_mode) {
-					case DRAG_RESIZE_UL:
-						clipRect.x = x;
-						clipRect.y = y;
-						clipRect.width = (int) (initialRect.getWidth() + diffX);
-						clipRect.height = (int) (initialRect.getHeight() + diffY);
+					case DRAG_RESIZE_UL: {
+						int w = (int) (initialRect.getWidth() + diffX);
+						if (w >= 0) {
+							clipRect.x = x;
+							clipRect.width = w;
+						}
+						int h = (int) (initialRect.getHeight() + diffY);
+						if (h >= 0) {
+							clipRect.y = y;
+							clipRect.height = h;
+						}
 						break;
-					case DRAG_RESIZE_UR:
-						clipRect.y = y;
+					}
+					case DRAG_RESIZE_UR: {
 						clipRect.width = (int) (initialRect.getWidth() - diffX);
-						clipRect.height = (int) (initialRect.getHeight() + diffY);
+						int h = (int) (initialRect.getHeight() + diffY);
+						if (h >= 0) {
+							clipRect.y = y;
+							clipRect.height = h;
+						}
 						break;
-					case DRAG_RESIZE_BL:
-						clipRect.x = x;
-						clipRect.width = (int) (initialRect.getWidth() + diffX);
+					}
+					case DRAG_RESIZE_BL: {
+						int w = (int) (initialRect.getWidth() + diffX);
+						if (w >= 0) {
+							clipRect.x = x;
+							clipRect.width = w;
+						}
 						clipRect.height = (int) (initialRect.getHeight() - diffY);
 						break;
+					}
 					case DRAG_RESIZE_BR:
 						clipRect.width = (int) (initialRect.getWidth() - diffX);
 						clipRect.height = (int) (initialRect.getHeight() - diffY);
@@ -153,12 +168,13 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 				
 				rabberBand.setAttribute("x",  "" + clipRect.x);
 				rabberBand.setAttribute("y",  "" + clipRect.y);
-				border.setAttribute("x",  "" + (clipRect.x - lineWidthHalf));
-				border.setAttribute("y",  "" + (clipRect.y - lineWidthHalf));
+				border.setAttribute("x",  "" + (clipRect.x - lineWidthHalf*scale));
+				border.setAttribute("y",  "" + (clipRect.y - lineWidthHalf*scale));
 				rabberBand.setAttribute("width", "" + clipRect.width);
 				rabberBand.setAttribute("height", "" + clipRect.height);
-				border.setAttribute("width", "" + (clipRect.width + lineWidthHalf*2));
-				border.setAttribute("height", "" + (clipRect.height + lineWidthHalf*2));
+				border.setAttribute("width", "" + (clipRect.width + lineWidthHalf*2*scale));
+				border.setAttribute("height", "" + (clipRect.height + lineWidthHalf*2*scale));
+				
 				for (int i=0; i<4; i++) {
 					grips[i].setAttributeNS(null, "x", Integer.toString(getGripPos(i, 0, clipRect.x, handleSize, clipRect.width)));
 					grips[i].setAttributeNS(null, "y", Integer.toString(getGripPos(i, 1, clipRect.y, handleSize, clipRect.height)));
@@ -225,6 +241,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	protected SVGOMPoint initialOffset;
 	protected Rectangle initialRect;
 	protected int handleSize = 100;
+	protected float scale = 1.0f;
 
 
 	protected final int DRAG_MOVE = 10;
@@ -305,7 +322,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	private Document createDocument(Rectangle clipRect, Rectangle imageRect, IFile item) {
 		String imageURI = item.getURI();
 		this.clipRect.setBounds(clipRect);
-		float scale = (float)imageRect.width / 1600;
+		scale = (float)imageRect.width / 1600;
 		int margin = (int)(100 * scale);
 		Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, mPreview, margin);
 		
@@ -347,7 +364,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		border.setAttributeNS(null, "width", Integer.toString(clipRect.width + lineWidthHalf*2));
 		border.setAttributeNS(null, "height", Integer.toString(clipRect.height + lineWidthHalf*2));
 		border.setAttributeNS(null, "pointer-events", "none");
-		border.setAttributeNS(null, "style", "fill:none; stroke:red; stroke-opacity:0.6; stroke-width: 20;");
+		border.setAttributeNS(null, "style", String.format("fill:none; stroke:red; stroke-opacity:0.6; stroke-width: %d;", lineWidthHalf*2));
 		
 		for (int i=0; i<4; i++) {
 			handleSize = (int)(80 * scale);
