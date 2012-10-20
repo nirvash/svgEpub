@@ -48,7 +48,12 @@ public class PathUtil {
 		return file.isFile() && file.canRead() &&
 				hasExtension(file, ".zip");
 	}
-	
+
+	public static boolean isRarFile(File file) {
+		return file.isFile() && file.canRead() &&
+				hasExtension(file, ".rar");
+	}
+
 	public static String getTmpDirectory() {
 		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
 		File tmp = new File(path);

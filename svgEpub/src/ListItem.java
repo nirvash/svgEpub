@@ -7,12 +7,19 @@ import java.io.InputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 
+import com.github.junrar.Archive;
+import com.github.junrar.exception.RarException;
+import com.github.junrar.rarfile.FileHeader;
+
 
 public class ListItem implements IFile {
 	private File file;
 
 	private ZipFile zipFile;
 	private String entryName;
+	
+	private Archive rarFile;
+	private FileHeader entryHeader;
 	
 	private File svgFile = null;
 	private boolean isSelected = false;
@@ -22,6 +29,8 @@ public class ListItem implements IFile {
 	public ListItem(File file) {
 		this.zipFile = null;
 		this.entryName = null;
+		this.rarFile = null;
+		this.entryHeader = null;
 		this.file = file;
 		if (PathUtil.isRasterFile(file)) {
 			this.isSelected = true;
@@ -33,10 +42,25 @@ public class ListItem implements IFile {
 	public ListItem(File file, ZipFile zipFile, String entryName) {
 		this.zipFile = zipFile;
 		this.entryName = entryName;
+		this.rarFile = null;
+		this.entryHeader = null;
 		this.file = file;
 		if (PathUtil.isRasterFile(entryName)) {
 			this.isSelected = true;
 		} else if (PathUtil.isSvgFile(entryName)) {
+			this.isSelected = false;
+		}
+	}
+
+	public ListItem(File file, Archive rarFile, FileHeader fh) {
+		this.zipFile = null;
+		this.entryName = null;
+		this.rarFile = rarFile;
+		this.entryHeader = fh;
+		this.file = file;
+		if (PathUtil.isRasterFile(fh.getFileNameString())) {
+			this.isSelected = true;
+		} else if (PathUtil.isSvgFile(fh.getFileNameString())) {
 			this.isSelected = false;
 		}
 	}
@@ -56,6 +80,8 @@ public class ListItem implements IFile {
 	public String toString() {
 		if (zipFile != null) {
 			return entryName;
+		} else if (rarFile != null) {
+			return entryHeader.getFileNameString();
 		} else {
 			return file.getName();
 		}
@@ -72,6 +98,13 @@ public class ListItem implements IFile {
 				InputStream stream = zipFile.getInputStream(e);
 				return stream;
 			} catch (Exception e) {
+				return null;
+			}
+		} else if (rarFile != null) {
+			try {
+				return rarFile.getInputStream(entryHeader);
+			} catch (Exception e) {
+				e.printStackTrace();
 				return null;
 			}
 		} else {
@@ -107,6 +140,13 @@ public class ListItem implements IFile {
 				name = name.substring(0, index);
 			}
 			return name;
+		} else if (rarFile != null) {
+			String name = file.getName();
+			int index = name.lastIndexOf(".");
+			if (name.substring(index).equalsIgnoreCase(".rar")) {
+				name = name.substring(0, index);
+			}
+			return name;
 		} else {
 			return file.getParentFile().getName();
 		}
@@ -115,15 +155,17 @@ public class ListItem implements IFile {
 	public String getFilename() {
 		if (zipFile != null) {
 			return entryName;
+		} else if (rarFile != null) {
+			return entryHeader.getFileNameString();
 		} else {
 			return file.getName();
 		}
 	}
 	
 	public String getURI() {
-		if (zipFile != null) {
+		if (zipFile != null || rarFile != null) {
 			String path = PathUtil.getTmpDirectory();
-			path += entryName;
+			path += getFilename();
 			File tmpFile = new File(path);
 			if (!tmpFile.exists()) {
 				if (!tmpFile.getParentFile().exists()) {

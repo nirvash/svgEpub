@@ -19,6 +19,10 @@ import javax.swing.TransferHandler;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 
+import com.github.junrar.Archive;
+import com.github.junrar.exception.RarException;
+import com.github.junrar.rarfile.FileHeader;
+
 
 public class FileDropHandler extends TransferHandler {
 	private static final long serialVersionUID = 1L;
@@ -88,6 +92,8 @@ public class FileDropHandler extends TransferHandler {
 	            	listModel.add(index++, new ListItem(value));
             	} else if (PathUtil.isZipFile(value)) {
             		index = addZipFileItems(listModel, index, value);
+            	} else if (PathUtil.isRarFile(value)) {
+            		index = addRarFileItems(listModel, index, value);
             	} else if (value.isDirectory()) {
             		index = addDirectoryItems(listModel, index, value);
             	}
@@ -102,6 +108,8 @@ public class FileDropHandler extends TransferHandler {
         return true;
 	}
 	
+
+
 	private int addDirectoryItems(DefaultListModel listModel, int index,
 			File dir) {
 		FileFilter filter = new FileFilter() {
@@ -117,16 +125,16 @@ public class FileDropHandler extends TransferHandler {
 		return index;
 	}
 
-	private int addZipFileItems(DefaultListModel listModel, int index, File value) {
-		ZipFile zf;
+	private int addZipFileItems(DefaultListModel listModel, int index, File file) {
+		ZipFile zipFile;
 		try {
-			zf = new ZipFile(value, null);
-			Enumeration<? extends ZipArchiveEntry> e = zf.getEntries();
+			zipFile = new ZipFile(file, null);
+			Enumeration<? extends ZipArchiveEntry> e = zipFile.getEntries();
 			while (e.hasMoreElements()) {
 				ZipArchiveEntry ze = e.nextElement();
 				if (ze.isDirectory()) continue;				
 				if (!PathUtil.isImageFile(ze.getName())) continue;
-				listModel.add(index++, new ListItem(value, zf, ze.getName()));
+				listModel.add(index++, new ListItem(file, zipFile, ze.getName()));
 			}
 // TODO : close if all items are removed.
 //			zf.close();
@@ -134,6 +142,20 @@ public class FileDropHandler extends TransferHandler {
 			return index;
 		}
 		
+		return index;
+	}
+	
+	private int addRarFileItems(DefaultListModel listModel, int index, File file) {
+		try {
+			final Archive rarFile = new Archive(file);
+			for (final FileHeader fh : rarFile.getFileHeaders()) {
+				if (fh.isDirectory()) continue;
+				if (!PathUtil.isImageFile(fh.getFileNameString())) continue;
+				listModel.add(index++, new ListItem(file, rarFile, fh));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 		return index;
 	}
 
