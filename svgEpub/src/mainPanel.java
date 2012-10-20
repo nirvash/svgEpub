@@ -58,6 +58,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	
 	private SaveDialog saveDialog;
 	private ConfigDialog configDialog;
+	private ClipTemplateDialog clipTemplateDialog;
 	
 	private ItemSelectionListener itemSelectionListener;
 	
@@ -430,6 +431,10 @@ public class mainPanel extends JFrame implements ActionListener {
 			ListItem item = (ListItem) jList0.getModel().getElementAt(index);
 			item.setClipRect(ImageUtil.getContentArea(item));
 			itemSelectionListener.updatePreviewImage(index);
+		} else if (e.getActionCommand().equals("ClipTemplate")) {
+			getClipTemplateDialog().setMainPanel(this);
+			getClipTemplateDialog().setLocationRelativeTo(this);
+			getClipTemplateDialog().setVisible(true);
 		} else if (e.getActionCommand().equals("CopyClip")) {
 			int index = jList0.getSelectedIndex();
 			if (index == -1) return;
@@ -463,7 +468,12 @@ public class mainPanel extends JFrame implements ActionListener {
 		return configDialog;
 	}
 	
-
+	private ClipTemplateDialog getClipTemplateDialog() {
+		if (clipTemplateDialog == null) {
+			clipTemplateDialog = new ClipTemplateDialog(this, "Select clip template", true, properties);
+		}
+		return clipTemplateDialog;
+	}
 
 
 	public void updateConfig() {
@@ -480,6 +490,16 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
 		jButtonAutoClip.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
+	}
+	
+	public void applyClipTemplate(ClipTemplate template) {
+		int index = jList0.getSelectedIndex();
+		if (index == -1) return;
+		ListItem item = (ListItem) jList0.getModel().getElementAt(index);
+		Rectangle imageRect = ImageUtil.getImageSize(item);
+		Rectangle clipRect = template.getClipRect(item);
+		item.setClipRect(clipRect);
+		itemSelectionListener.updatePreviewImage(index);
 	}
 	
 	class PopClickListener extends MouseAdapter {
