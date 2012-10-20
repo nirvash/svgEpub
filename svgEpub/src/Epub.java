@@ -273,7 +273,7 @@ public class Epub {
 	    	String imageURI = "images/" + pageName + "." + extension;
 	    	
 			Rectangle imageRect = ImageUtil.getImageSize(item);
-			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true);
+			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true, 0);
 			doc.normalizeDocument();
 
 			String svgTag = serializeDocument(doc);
@@ -300,7 +300,7 @@ public class Epub {
 	    	String imageURI = "images/" + pageName + "." + extension;
         
 	    	Rectangle imageRect = ImageUtil.getSvgSize(item);
-			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true);
+			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true, 0);
 			doc.normalizeDocument();
 
 			String svgTag = serializeDocument(doc);

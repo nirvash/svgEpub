@@ -367,20 +367,23 @@ public class ImageUtil {
 	}
 	
 	
-	public static Document createSvgDocument(Rectangle clipRect, Rectangle imageRect, String imageURI, boolean isPreview) {
+	public static Document createSvgDocument(Rectangle clipRect, Rectangle imageRect, String imageURI, boolean isPreview, int margin) {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
 		if (clipRect == null) {
 			clipRect = imageRect;
 		}
 		Rectangle rootRect = isPreview ? clipRect : imageRect;
-		Document doc = impl.createDocument(svgNS, "svg", null);		
+		Document doc = impl.createDocument(svgNS, "svg", null);
+
 		Element svgRootOuter = doc.getDocumentElement();
+
+		svgRootOuter.setAttribute("id", "root");
 		svgRootOuter.setAttributeNS(null , "width", "100%");
 		svgRootOuter.setAttributeNS(null , "height", "100%");
 		svgRootOuter.setAttributeNS(null, "viewBox", 
-				String.format("0 0 %d %d",  rootRect.width, rootRect.height));
+				String.format("%d %d %d %d",  -margin, -margin, rootRect.width + margin*2, rootRect.height + margin*2));
 		svgRootOuter.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
-
+		
 		Element image = doc.createElementNS(svgNS, "image");
 		image.setAttributeNS(null, "width", Integer.toString(imageRect.width));
 		image.setAttributeNS(null, "height", Integer.toString(imageRect.height));

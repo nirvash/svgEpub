@@ -51,43 +51,43 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	private OnMoveAction moveAction = new OnMoveAction();
 	private OnDownAction downAction = new OnDownAction();
 	private OnOverAction overAction = new OnOverAction();
-	private OnOutAction outAction = new OnOutAction();
+	
+	private int symbolMargin = 50;
+
 
 	public class OnOverAction implements EventListener {
 		@Override
 		public void handleEvent(Event evt) {
-			Cursor cur = new Cursor(Cursor.HAND_CURSOR);
+			Element e = (Element)evt.getTarget();
+			String id = e.getAttribute("id");
+			int cursorType = Cursor.MOVE_CURSOR;
+			if (id.startsWith("handle")) {
+				int index = Integer.parseInt(id.replace("handle", ""));
+				cursorType = cursorTable[index];
+			}
+			Cursor cur = new Cursor(cursorType);
 			setCursor(cur);
 		}
 	}
 	
-	public class OnOutAction implements EventListener {
-		@Override
-		public void handleEvent(Event arg0) {
-		}
-		
-	}
-
 	public class OnUpAction implements EventListener {
 		@Override
 		public void handleEvent(Event ev) {
 //			logger.info("onUP");
-			Cursor cur = new Cursor(Cursor.DEFAULT_CURSOR);
-			setCursor(cur);
 			Document doc = getSVGDocument();
-			EventTarget t = (EventTarget)doc.getDocumentElement();
-//			EventTarget t = ev.getTarget();
+//			EventTarget t = (EventTarget)doc.getElementById("root");
+			EventTarget t = (EventTarget)hitRegion;
 			t.removeEventListener("mousemove", moveAction, false);
 			t.removeEventListener("mouseup", upAction, false);
+			hitRegion.setAttributeNS(null, "pointer-events", "none");
 			
-			SVGLocatable node = (SVGLocatable)ev.getTarget();
-			clipRect = new Rectangle();
+			SVGLocatable node = (SVGLocatable)rabberBand;
 			clipRect.x = (int)node.getBBox().getX();
 			clipRect.y = (int)node.getBBox().getY();
 			clipRect.width = (int)node.getBBox().getWidth();
 			clipRect.height = (int)node.getBBox().getHeight();
 			
-			mListItem.setClipRect(clipRect);
+			mListItem.setClipRect((Rectangle)clipRect.clone());
 		}
 	}
 
@@ -105,21 +105,64 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 			int lineWidthHalf = 20 / 2;
 		
 			if (drag_mode == DRAG_MOVE) {
+				int x = (int) (dragpt.getX() - initialOffset.getX());
+				int y = (int) (dragpt.getY() - initialOffset.getY());
 				Cursor cur = new Cursor(Cursor.MOVE_CURSOR);
 				setCursor(cur);
-				selectedItem.setAttribute("x",  "" + (dragpt.getX() - initialOffset.getX()));
-				selectedItem.setAttribute("y",  "" + (dragpt.getY() - initialOffset.getY()));
-				fill.setAttribute("x",  "" + (dragpt.getX() - initialOffset.getX() - lineWidthHalf));
-				fill.setAttribute("y",  "" + (dragpt.getY() - initialOffset.getY() - lineWidthHalf));
-			} else if (drag_mode == DRAG_RESIZE_BOTTOM_RIGHT) {
-				Cursor cur = new Cursor(Cursor.SE_RESIZE_CURSOR);
+				clipRect.x = x;
+				clipRect.y = y;
+				rabberBand.setAttribute("x",  "" + clipRect.x);
+				rabberBand.setAttribute("y",  "" + clipRect.y);
+				border.setAttribute("x",  "" + (clipRect.x - lineWidthHalf));
+				border.setAttribute("y",  "" + (clipRect.y - lineWidthHalf));
+				for (int i=0; i<4; i++) {
+					grips[i].setAttributeNS(null, "x", Integer.toString(getGripPos(i, 0, clipRect.x, handleSize, clipRect.width)));
+					grips[i].setAttributeNS(null, "y", Integer.toString(getGripPos(i, 1, clipRect.y, handleSize, clipRect.height)));
+				}
+			} else {
+				int x = (int) (dragpt.getX() - initialOffset.getX());
+				int y = (int) (dragpt.getY() - initialOffset.getY());
+				int diffX = (int) (initialDragPoint.getX() - dragpt.getX());
+				int diffY = (int) (initialDragPoint.getY() - dragpt.getY());
+				Cursor cur = new Cursor(cursorTable[drag_mode]);
 				setCursor(cur);
-				int width = (int) (initialRect.getWidth() + (dragpt.getX() - initialDragPoint.getX()));
-				int height = (int) (initialRect.getHeight() + (dragpt.getY() - initialDragPoint.getY()));
-				selectedItem.setAttribute("width", "" + width);
-				selectedItem.setAttribute("height", "" + height);
-				fill.setAttribute("width", "" + (width + lineWidthHalf*2));
-				fill.setAttribute("height", "" + (height + lineWidthHalf*2));
+				switch (drag_mode) {
+					case DRAG_RESIZE_UL:
+						clipRect.x = x;
+						clipRect.y = y;
+						clipRect.width = (int) (initialRect.getWidth() + diffX);
+						clipRect.height = (int) (initialRect.getHeight() + diffY);
+						break;
+					case DRAG_RESIZE_UR:
+						clipRect.y = y;
+						clipRect.width = (int) (initialRect.getWidth() - diffX);
+						clipRect.height = (int) (initialRect.getHeight() + diffY);
+						break;
+					case DRAG_RESIZE_BL:
+						clipRect.x = x;
+						clipRect.width = (int) (initialRect.getWidth() + diffX);
+						clipRect.height = (int) (initialRect.getHeight() - diffY);
+						break;
+					case DRAG_RESIZE_BR:
+						clipRect.width = (int) (initialRect.getWidth() - diffX);
+						clipRect.height = (int) (initialRect.getHeight() - diffY);
+						break;
+				};
+				clipRect.width = Math.max(0, clipRect.width);
+				clipRect.height = Math.max(0, clipRect.height);
+				
+				rabberBand.setAttribute("x",  "" + clipRect.x);
+				rabberBand.setAttribute("y",  "" + clipRect.y);
+				border.setAttribute("x",  "" + (clipRect.x - lineWidthHalf));
+				border.setAttribute("y",  "" + (clipRect.y - lineWidthHalf));
+				rabberBand.setAttribute("width", "" + clipRect.width);
+				rabberBand.setAttribute("height", "" + clipRect.height);
+				border.setAttribute("width", "" + (clipRect.width + lineWidthHalf*2));
+				border.setAttribute("height", "" + (clipRect.height + lineWidthHalf*2));
+				for (int i=0; i<4; i++) {
+					grips[i].setAttributeNS(null, "x", Integer.toString(getGripPos(i, 0, clipRect.x, handleSize, clipRect.width)));
+					grips[i].setAttributeNS(null, "y", Integer.toString(getGripPos(i, 1, clipRect.y, handleSize, clipRect.height)));
+				}
 			}
                                    			
 			ev.stopPropagation();
@@ -131,7 +174,8 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		public void handleEvent(Event ev) {
 			//logger.info("onDown");
 			selectedItem = (Element)ev.getTarget();
-			SVGLocatable thisNode = (SVGLocatable)ev.getTarget();
+//			SVGLocatable thisNode = (SVGLocatable)ev.getTarget();
+			SVGLocatable thisNode = (SVGLocatable)rabberBand;
 			DOMMouseEvent dme = (DOMMouseEvent)ev;
 			int nowToX = dme.getClientX();
 			int nowToY = dme.getClientY();
@@ -141,13 +185,13 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 			mat = mat.inverse();
 			initialDragPoint = (SVGOMPoint)pt.matrixTransform(mat);
 			initialOffset = new SVGOMPoint(initialDragPoint.getX() - thisNode.getBBox().getX(), initialDragPoint.getY() - thisNode.getBBox().getY());
-			initialRect = new Rectangle((int)thisNode.getBBox().getWidth(), (int)thisNode.getBBox().getHeight());
-			
-			
-			if (initialOffset.getX() > thisNode.getBBox().getWidth() - 100 && 
-				initialOffset.getY() > thisNode.getBBox().getHeight() - 100) {
-				drag_mode = DRAG_RESIZE_BOTTOM_RIGHT;
-				Cursor cur = new Cursor(Cursor.SE_RESIZE_CURSOR);
+			initialRect = (Rectangle)clipRect.clone();
+
+			Element target = (Element)ev.getTarget();
+			if (target.getAttribute("id").startsWith("handle")) {
+				int id = Integer.parseInt(target.getAttribute("id").replace("handle", ""));
+				drag_mode = DRAG_RESIZE_BASE + id;
+				Cursor cur = new Cursor(cursorTable[id]);
 				setCursor(cur);
 			} else {
 				drag_mode = DRAG_MOVE;
@@ -156,9 +200,9 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 			}
 			
 			Document doc = getSVGDocument();
-			EventTarget t = (EventTarget)doc.getDocumentElement();
-			
-//			EventTarget t = ev.getTarget();
+//			EventTarget t = (EventTarget)doc.getElementById("root");
+			EventTarget t = (EventTarget)hitRegion;
+			hitRegion.setAttributeNS(null, "pointer-events", "fill");
 			t.addEventListener("mousemove", moveAction, false);
 			t.addEventListener("mouseup", upAction, false);
 			ev.stopPropagation();
@@ -169,17 +213,29 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	private static final long serialVersionUID = 1L;
 	private static final String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
 
-	protected Rectangle clipRect = null;
+	protected Rectangle clipRect = new Rectangle();
 
 	protected Element selectedItem;
-	protected Element fill;
+	protected Element rabberBand;
+	protected Element hitRegion;
+	protected Element border;
+	protected Element[] grips = new Element[4];
 	
 	protected SVGOMPoint initialDragPoint;
 	protected SVGOMPoint initialOffset;
 	protected Rectangle initialRect;
+	protected int handleSize = 100;
 
-	protected final int DRAG_MOVE = 0;
-	protected final int DRAG_RESIZE_BOTTOM_RIGHT = 1;
+
+	protected final int DRAG_MOVE = 10;
+	protected final int DRAG_RESIZE_BASE = 0;
+	protected final int DRAG_RESIZE_UL = DRAG_RESIZE_BASE + 0;
+	protected final int DRAG_RESIZE_UR = DRAG_RESIZE_BASE + 1;
+	protected final int DRAG_RESIZE_BL = DRAG_RESIZE_BASE + 2;
+	protected final int DRAG_RESIZE_BR = DRAG_RESIZE_BASE + 3;
+	protected final int[] cursorTable = new int[] {
+			Cursor.NW_RESIZE_CURSOR, Cursor.NE_RESIZE_CURSOR, Cursor.SW_RESIZE_CURSOR, Cursor.SE_RESIZE_CURSOR
+	};
 	protected int drag_mode = DRAG_MOVE;
 	
 	final Logger logger = Logger.getLogger("SampleLogging");
@@ -248,47 +304,114 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	
 	private Document createDocument(Rectangle clipRect, Rectangle imageRect, IFile item) {
 		String imageURI = item.getURI();
-		Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, mPreview);
-		if (mPreview) return doc;
+		this.clipRect.setBounds(clipRect);
+		float scale = (float)imageRect.width / 1600;
+		int margin = (int)(100 * scale);
+		Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, mPreview, margin);
 		
-		Element svgRootOuter = doc.getDocumentElement();
-		Element g = doc.createElementNS(svgNS, "g");
-		g.setAttributeNS(null, "x", Integer.toString(clipRect.x));
-		g.setAttributeNS(null, "y", Integer.toString(clipRect.y));
-		g.setAttributeNS(null, "width", Integer.toString(clipRect.width));
-		g.setAttributeNS(null, "height", Integer.toString(clipRect.height));
-		g.setAttributeNS(null, "pointer-events", "all");
-		
-		Element rect = doc.createElementNS(svgNS, "rect");
-		rect.setAttribute("id", "clipRegion");
-		rect.setAttributeNS(null, "x", Integer.toString(clipRect.x));
-		rect.setAttributeNS(null, "y", Integer.toString(clipRect.y));
-		rect.setAttributeNS(null, "width", Integer.toString(clipRect.width));
-		rect.setAttributeNS(null, "height", Integer.toString(clipRect.height));
-		rect.setAttributeNS(null, "pointer-events", "fill");
-		rect.setAttributeNS(null, "vector-effect", "non-scaling-stroke");
-		rect.setAttributeNS(null, "style", "fill:none;stroke:black; stroke-opacity:1.0; stroke-dasharray: 5 2;");
-		
-		fill = doc.createElementNS(svgNS, "rect");
-		int lineWidthHalf = 20 / 2;
-		fill.setAttributeNS(null, "x", Integer.toString(clipRect.x - lineWidthHalf));
-		fill.setAttributeNS(null, "y", Integer.toString(clipRect.y - lineWidthHalf));
-		fill.setAttributeNS(null, "width", Integer.toString(clipRect.width + lineWidthHalf*2));
-		fill.setAttributeNS(null, "height", Integer.toString(clipRect.height + lineWidthHalf*2));
-		fill.setAttributeNS(null, "pointer-events", "none");
-		fill.setAttributeNS(null, "vector-effect", "non-scaling-stroke");
-		fill.setAttributeNS(null, "style", "fill:none; stroke:red; stroke-opacity:0.6; stroke-width: 20;");
-		
-		((EventTarget) g).addEventListener("mouseover", overAction, false);
-		((EventTarget) g).addEventListener("mousedown", downAction, false);
+		Element svgRootOuter = doc.getElementById("root");
 
-		svgRootOuter.appendChild(g);
-		g.appendChild(fill);
-		g.appendChild(rect);
+		if (mPreview) return doc;
+		float scaleX = mPreview ? (float)clipRect.width / imageRect.width : 1.0f;
+		float scaleY = mPreview ? (float)clipRect.height / imageRect.height : 1.0f;
+		Rectangle bgRect = mPreview ? new Rectangle(imageRect.x, imageRect.y, clipRect.width, clipRect.height) : imageRect;
+		Element bg = doc.createElementNS(svgNS, "rect");
+		bg.setAttributeNS(null, "x", Float.toString(bgRect.x - margin/2*scaleX));
+		bg.setAttributeNS(null, "y", Float.toString(bgRect.y - margin/2*scaleY));
+		bg.setAttributeNS(null, "width", Float.toString(bgRect.width + margin*scaleX));
+		bg.setAttributeNS(null, "height", Float.toString(bgRect.height + margin*scaleY));
+		bg.setAttributeNS(null, "pointer-events", "none");
+		bg.setAttributeNS(null, "style", String.format("fill:none; stroke:silver; stroke-width:%f;", margin*scaleX));
+		svgRootOuter.insertBefore(bg, svgRootOuter.getFirstChild());
+
+/*
+		Element symbol = doc.createElementNS(svgNS, "symbol");
+		symbol.setAttribute("id", "rabberBand");
+		symbol.setAttributeNS(null, "viewBox", String.format("%d %d %d %d", 
+				-symbolMargin, -symbolMargin, clipRect.width + symbolMargin*2, clipRect.height+symbolMargin*2));
+		symbol.setAttributeNS(null, "pointer-events", "all");
+*/
+		rabberBand = doc.createElementNS(svgNS, "rect");
+		rabberBand.setAttribute("id", "clipRegion");
+		rabberBand.setAttributeNS(null, "x", Integer.toString(clipRect.x));
+		rabberBand.setAttributeNS(null, "y", Integer.toString(clipRect.y));
+		rabberBand.setAttributeNS(null, "width", Integer.toString(clipRect.width));
+		rabberBand.setAttributeNS(null, "height", Integer.toString(clipRect.height));
+		rabberBand.setAttributeNS(null, "pointer-events", "fill");
+		rabberBand.setAttributeNS(null, "style", "fill:none;stroke:black; stroke-opacity:1.0; stroke-dasharray: 5 2;");
+		
+		border = doc.createElementNS(svgNS, "rect");
+		int lineWidthHalf = (int)(20 / 2 * scale);
+		border.setAttributeNS(null, "x", Integer.toString(clipRect.x-lineWidthHalf));
+		border.setAttributeNS(null, "y", Integer.toString(clipRect.y-lineWidthHalf));
+		border.setAttributeNS(null, "width", Integer.toString(clipRect.width + lineWidthHalf*2));
+		border.setAttributeNS(null, "height", Integer.toString(clipRect.height + lineWidthHalf*2));
+		border.setAttributeNS(null, "pointer-events", "none");
+		border.setAttributeNS(null, "style", "fill:none; stroke:red; stroke-opacity:0.6; stroke-width: 20;");
+		
+		for (int i=0; i<4; i++) {
+			handleSize = (int)(80 * scale);
+			Element handle = doc.createElementNS(svgNS, "rect");
+			handle.setAttribute("id", String.format("handle%d", i));
+			handle.setAttributeNS(null, "x", Integer.toString(getGripPos(i, 0, clipRect.x, handleSize, clipRect.width)));
+			handle.setAttributeNS(null, "y", Integer.toString(getGripPos(i, 1, clipRect.y, handleSize, clipRect.height)));
+			handle.setAttributeNS(null, "width", Integer.toString(handleSize));
+			handle.setAttributeNS(null, "height", Integer.toString(handleSize));
+			handle.setAttributeNS(null, "pointer-events", "fill");
+			handle.setAttributeNS(null, "style", "fill:blue; stroke:black; stroke-width: 1;");
+			svgRootOuter.appendChild(handle);
+			((EventTarget) handle).addEventListener("mousemove", overAction, false);
+			((EventTarget) handle).addEventListener("mousedown", downAction, false);
+			grips[i] = handle;
+		}
+
+		svgRootOuter.appendChild(border);
+		svgRootOuter.appendChild(rabberBand);
+
+//		svgRootOuter.appendChild(symbol);
+		/*
+		rabberBand = doc.createElementNS(svgNS, "use");
+		XLinkSupport.setXLinkHref(rabberBand, "#rabberBand");
+		rabberBand.setAttributeNS(null, "x", Integer.toString(clipRect.x - symbolMargin));
+		rabberBand.setAttributeNS(null, "y", Integer.toString(clipRect.y - symbolMargin));
+		rabberBand.setAttributeNS(null, "width", Integer.toString(clipRect.width/2 + symbolMargin*2));
+		rabberBand.setAttributeNS(null, "height", Integer.toString(clipRect.height/2 + symbolMargin*2));
+*/
+		hitRegion = doc.createElementNS(svgNS, "rect");
+		hitRegion.setAttribute("id", "hitRegion");
+		hitRegion.setAttributeNS(null, "x", Integer.toString(-3000));
+		hitRegion.setAttributeNS(null, "y", Integer.toString(-3000));
+		hitRegion.setAttributeNS(null, "width", Integer.toString(20000));
+		hitRegion.setAttributeNS(null, "height", Integer.toString(20000));
+		hitRegion.setAttributeNS(null, "pointer-events", "none");
+		hitRegion.setAttributeNS(null, "style", "fill:none;stroke:none;");
+		doc.getDocumentElement().appendChild(hitRegion);
+
+
+		((EventTarget) rabberBand).addEventListener("mousemove", overAction, false);
+		((EventTarget) rabberBand).addEventListener("mousedown", downAction, false);
+
 		return doc;
 	}
 
 	
+	private int getGripPos(int index, int j, int offset, int handleWidth, int width) {
+		switch (index) {
+		case 0:
+			return offset-handleWidth;
+		case 1:
+			if (j==0) return offset+width;
+			return offset-handleWidth;
+		case 2:
+			if (j==0) return offset-handleWidth;
+			return offset+width;
+		case 3:
+		default:
+			return offset+width;
+		}
+	}
+
+
 	private class WheelZooming implements MouseWheelListener {
 		boolean isFinished=true;
 		TimerTask task;
