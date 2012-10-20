@@ -49,12 +49,12 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel jPanel5;
 	private JList jList0;
 	
-	private JButton jButton0;
-	private JButton jButton1;
+	private JButton jButtonRemove;
+	private JButton jButtonClear;
 
 	private JPanel jPanelNorth;
-	private JButton jButton2;
-	private JCheckBox jCheckBox0;
+	private JButton jButtonCreateEpub;
+	private JCheckBox jCheckBoxPreview;
 	
 	private SaveDialog saveDialog;
 	private ConfigDialog configDialog;
@@ -62,14 +62,15 @@ public class mainPanel extends JFrame implements ActionListener {
 	private ItemSelectionListener itemSelectionListener;
 	
 	private static CustomProperties properties = new CustomProperties();
-	private JButton jButton3;
-	private JButton jButton4;
+	private JButton jButtonConfig;
+	private JButton jButtonResetClip;
 	private JPanel jPanel0;
 	
 	private JPopupMenu jListPopupMenu;
 	private Rectangle copyClipRectangle = null;
 	
-	private JButton jButton5;
+	private JButton jButtonAutoClip;
+	private JButton jButtonClipTemplate;
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
 		return properties;
@@ -99,15 +100,25 @@ public class mainPanel extends JFrame implements ActionListener {
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 	}
 	
-	private JButton getJButton5() {
-		if (jButton5 == null) {
-			jButton5 = new JButton();
-			jButton5.setText("Auto Clip");
-			jButton5.setActionCommand("AutoClip");
-			jButton5.addActionListener(this);
-			jButton5.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
+	private JButton getJButtonClipTemplate() {
+		if (jButtonClipTemplate == null) {
+			jButtonClipTemplate = new JButton();
+			jButtonClipTemplate.setText("Clip Template");
+			jButtonClipTemplate.setActionCommand("ClipTemplate");
+			jButtonClipTemplate.addActionListener(this);
 		}
-		return jButton5;
+		return jButtonClipTemplate;
+	}
+
+	private JButton getJButtonAutoClip() {
+		if (jButtonAutoClip == null) {
+			jButtonAutoClip = new JButton();
+			jButtonAutoClip.setText("Auto Clip");
+			jButtonAutoClip.setActionCommand("AutoClip");
+			jButtonAutoClip.addActionListener(this);
+			jButtonAutoClip.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
+		}
+		return jButtonAutoClip;
 	}
 
 	private JPanel getJPanel0() {
@@ -116,7 +127,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 		return jPanel0;
 	}
-	
+
 	private JPopupMenu getJListPopupMenu() {
 		if (jListPopupMenu == null) {
 			jListPopupMenu = new JPopupMenu();
@@ -134,14 +145,14 @@ public class mainPanel extends JFrame implements ActionListener {
 		return jListPopupMenu;
 	}
 
-	private JButton getJButton4() {
-		if (jButton4 == null) {
-			jButton4 = new JButton();
-			jButton4.setText("Reset Clip");
-			jButton4.setActionCommand("ResetClip");
-			jButton4.addActionListener(this);
+	private JButton getJButtonResetClip() {
+		if (jButtonResetClip == null) {
+			jButtonResetClip = new JButton();
+			jButtonResetClip.setText("Reset Clip");
+			jButtonResetClip.setActionCommand("ResetClip");
+			jButtonResetClip.addActionListener(this);
 		}
-		return jButton4;
+		return jButtonResetClip;
 	}
 
 	class Shutdown extends Thread {
@@ -152,36 +163,35 @@ public class mainPanel extends JFrame implements ActionListener {
 		}
 	}
 
-	private JButton getJButton3() {
-		if (jButton3 == null) {
-			jButton3 = new JButton();
-			jButton3.setText("Config");
-			jButton3.setActionCommand("Config");
-			jButton3.addActionListener(this);
+	private JButton getJButtonConfig() {
+		if (jButtonConfig == null) {
+			jButtonConfig = new JButton();
+			jButtonConfig.setText("Config");
+			jButtonConfig.setActionCommand("Config");
+			jButtonConfig.addActionListener(this);
 		}
-		return jButton3;
+		return jButtonConfig;
 	}
 
-	private JCheckBox getJCheckBox0() {
-		if (jCheckBox0 == null) {
-			jCheckBox0 = new JCheckBox();
-			jCheckBox0.setText("Preview SVG output");
-			jCheckBox0.setSelected(false);
-			jCheckBox0.addItemListener(new ItemListener() {
-				@Override
-				public void itemStateChanged(ItemEvent e) {
+	private JCheckBox getJCheckBoxPreview() {
+		if (jCheckBoxPreview == null) {
+			jCheckBoxPreview = new JCheckBox();
+			jCheckBoxPreview.setText("Preview");
+			jCheckBoxPreview.addItemListener(new ItemListener() {
+	
+				public void itemStateChanged(ItemEvent event) {
 					if (itemSelectionListener != null) {
-						itemSelectionListener.setEnabledPreview(jCheckBox0.isSelected());
+						itemSelectionListener.setEnabledPreview(jCheckBoxPreview.isSelected());
 						if (jList0 != null) {
 							int index = jList0.getSelectedIndex();
 							itemSelectionListener.updatePreviewImage(index);
 						}
 					}
-					jButton4.setEnabled(!jCheckBox0.isSelected());
+					jButtonResetClip.setEnabled(!jCheckBoxPreview.isSelected());
 				}
 			});
 		}
-		return jCheckBox0;
+		return jCheckBoxPreview;
 	}
 
 	private CustomSVGCanvas getSvgCanvas() {
@@ -226,37 +236,37 @@ public class mainPanel extends JFrame implements ActionListener {
 	}
 	
 
-	private JButton getJButton2() {
-		if (jButton2 == null) {
-			jButton2 = new JButton();
-			jButton2.setText("Create EPUB");
-			jButton2.setActionCommand("Create");
-			jButton2.addActionListener(this);
+	private JButton getJButtonCreateEpub() {
+		if (jButtonCreateEpub == null) {
+			jButtonCreateEpub = new JButton();
+			jButtonCreateEpub.setText("Create EPUB");
+			jButtonCreateEpub.setActionCommand("Create");
+			jButtonCreateEpub.addActionListener(this);
 		}
-		return jButton2;
+		return jButtonCreateEpub;
 	}
 	
 
-	private JButton getJButton1() {
-		if (jButton1 == null) {
-			jButton1 = new JButton();
-			jButton1.setText("Clear");
-			jButton1.setActionCommand("Clear");
-			jButton1.addActionListener(this);
+	private JButton getJButtonClear() {
+		if (jButtonClear == null) {
+			jButtonClear = new JButton();
+			jButtonClear.setText("Clear");
+			jButtonClear.setActionCommand("Clear");
+			jButtonClear.addActionListener(this);
 //			jButton1.setToolTipText("Clear all images");
 		}
-		return jButton1;
+		return jButtonClear;
 	}
 	
-	private JButton getJButton0() {
-		if (jButton0 == null) {
-			jButton0 = new JButton();
-			jButton0.setText("Remove");
-			jButton0.setActionCommand("Remove");
-			jButton0.addActionListener(this);
+	private JButton getJButtonRemove() {
+		if (jButtonRemove == null) {
+			jButtonRemove = new JButton();
+			jButtonRemove.setText("Remove");
+			jButtonRemove.setActionCommand("Remove");
+			jButtonRemove.addActionListener(this);
 //			jButton0.setToolTipText("Remove selected images");
 		}
-		return jButton0;
+		return jButtonRemove;
 	}
 
 	private JScrollPane getJScrollPane1() {
@@ -308,12 +318,13 @@ public class mainPanel extends JFrame implements ActionListener {
 		if (jPanelNorth == null) {
 			jPanelNorth = new JPanel();
 			jPanelNorth.setLayout(new BoxLayout(jPanelNorth, BoxLayout.X_AXIS));
-			jPanelNorth.add(getJButton2());
-			jPanelNorth.add(getJCheckBox0());
-			jPanelNorth.add(getJButton4());
-			jPanelNorth.add(getJButton5());
+			jPanelNorth.add(getJButtonCreateEpub());
+			jPanelNorth.add(getJCheckBoxPreview());
+			jPanelNorth.add(getJButtonResetClip());
+			jPanelNorth.add(getJButtonAutoClip());
+			jPanelNorth.add(getJButtonClipTemplate());
 			jPanelNorth.add(getJPanel0());
-			jPanelNorth.add(getJButton3());
+			jPanelNorth.add(getJButtonConfig());
 		}
 		return jPanelNorth;
 	}
@@ -321,8 +332,8 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JPanel getJPanel2() {
 		if (jPanel2 == null) {
 			jPanel2 = new JPanel();
-			jPanel2.add(getJButton0());
-			jPanel2.add(getJButton1());
+			jPanel2.add(getJButtonRemove());
+			jPanel2.add(getJButtonClear());
 		}
 		return jPanel2;
 	}
@@ -468,7 +479,7 @@ public class mainPanel extends JFrame implements ActionListener {
 			itemSelectionListener.updatePreviewImage(getJList0().getSelectedIndex());
 		}
 		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
-		jButton5.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
+		jButtonAutoClip.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
 	}
 	
 	class PopClickListener extends MouseAdapter {
