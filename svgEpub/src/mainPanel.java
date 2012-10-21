@@ -31,7 +31,6 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
-//VS4E -- DO NOT REMOVE THIS LINE!
 public class mainPanel extends JFrame implements ActionListener {
 
 	private static final long serialVersionUID = 1L;
@@ -51,6 +50,8 @@ public class mainPanel extends JFrame implements ActionListener {
 	
 	private JButton jButtonRemove;
 	private JButton jButtonClear;
+	private JButton jButtonCheck;
+	private JButton jButtonUncheck;
 
 	private JPanel jPanelNorth;
 	private JButton jButtonCreateEpub;
@@ -270,6 +271,26 @@ public class mainPanel extends JFrame implements ActionListener {
 		return jButtonRemove;
 	}
 
+	private JButton getJButtonCheck() {
+		if (jButtonCheck == null) {
+			jButtonCheck = new JButton();
+			jButtonCheck.setText("Check");
+			jButtonCheck.setActionCommand("Check");
+			jButtonCheck.addActionListener(this);
+		}
+		return jButtonCheck;
+	}
+	
+	private JButton getJButtonUncheck() {
+		if (jButtonUncheck == null) {
+			jButtonUncheck = new JButton();
+			jButtonUncheck.setText("Uncheck");
+			jButtonUncheck.setActionCommand("Uncheck");
+			jButtonUncheck.addActionListener(this);
+		}
+		return jButtonUncheck;
+	}
+	
 	private JScrollPane getJScrollPane1() {
 		if (jScrollPane1 == null) {
 			jScrollPane1 = new JScrollPane();
@@ -280,7 +301,7 @@ public class mainPanel extends JFrame implements ActionListener {
 
 	private JList getJList0() {
 		if (jList0 == null) {
-			DefaultListModel fileListModel = new DefaultListModel();
+			BookListModel fileListModel = new BookListModel();
 			jList0 = new JList(fileListModel);
 		    jList0.setTransferHandler(new FileDropHandler(fileListModel));
 		    jList0.setCellRenderer(new FileRenderer());
@@ -335,6 +356,8 @@ public class mainPanel extends JFrame implements ActionListener {
 			jPanel2 = new JPanel();
 			jPanel2.add(getJButtonRemove());
 			jPanel2.add(getJButtonClear());
+			jPanel2.add(getJButtonCheck());
+			jPanel2.add(getJButtonUncheck());
 		}
 		return jPanel2;
 	}
@@ -342,7 +365,7 @@ public class mainPanel extends JFrame implements ActionListener {
 	private JSplitPane getJSplitPane1() {
 		if (jSplitPane1 == null) {
 			jSplitPane1 = new JSplitPane();
-			jSplitPane1.setDividerLocation(263);
+			jSplitPane1.setDividerLocation(300);
 			jSplitPane1.setDividerSize(5);
 			jSplitPane1.setLeftComponent(geJPanel5());
 			jSplitPane1.setRightComponent(getJPanel4());
@@ -451,9 +474,29 @@ public class mainPanel extends JFrame implements ActionListener {
 				((ListItem)item).setClipRect(copyClipRectangle);
 			}
 			itemSelectionListener.updatePreviewImage(jList0.getSelectedIndex());
+		} else if (e.getActionCommand().equals("Check")) {
+			checkItems(true);
+		} else if (e.getActionCommand().equals("Uncheck")) {
+			checkItems(false);
 		}
+
 	}
 	
+	private void checkItems(boolean check) {
+		if (jList0.isSelectionEmpty()) return;
+		Object[] items = jList0.getSelectedValues();
+		for (Object item : items) {
+			((ListItem)item).setSelected(check);
+		}
+		itemSelectionListener.updatePreviewImage(jList0.getSelectedIndex());
+		
+		int[] indicies = jList0.getSelectedIndices();
+		int begin = indicies[0];
+		int end = indicies[indicies.length-1];
+		BookListModel model = (BookListModel)jList0.getModel();
+		model.notifyModelUpdate(begin, end);
+	}
+
 	private SaveDialog getSaveDialog() {
 		if (saveDialog == null) {
 			saveDialog = new SaveDialog(this , "Save EPUB" , true, properties);
@@ -496,7 +539,7 @@ public class mainPanel extends JFrame implements ActionListener {
 		int index = jList0.getSelectedIndex();
 		if (index == -1) return;
 		ListItem item = (ListItem) jList0.getModel().getElementAt(index);
-		Rectangle imageRect = ImageUtil.getImageSize(item);
+//		Rectangle imageRect = ImageUtil.getImageSize(item);
 		Rectangle clipRect = template.getClipRect(item);
 		item.setClipRect(clipRect);
 		itemSelectionListener.updatePreviewImage(index);
