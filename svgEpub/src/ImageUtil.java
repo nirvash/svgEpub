@@ -318,16 +318,36 @@ public class ImageUtil {
     	Iterator<ImageReader> readers = ImageIO.getImageReadersBySuffix(extension);
         ImageReader imageReader = (ImageReader) readers.next();
     	Rectangle rect = new Rectangle();
-		try {
-			InputStream stream = item.getInputStream();
-	        ImageInputStream imageInputStream = ImageIO.createImageInputStream(stream);
-	        imageReader.setInput(imageInputStream, false);
-	        rect.width = imageReader.getWidth(0);
-	        rect.height = imageReader.getHeight(0);
-			stream.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+    	
+    	InputStream stream = null;
+    	ImageInputStream imageInputStream = null;
+    	for (int i=0; imageInputStream == null && i<3; i++) { // workaround : rar library somtimes fails to read...
+			try {
+				stream = item.getInputStream();
+		        imageInputStream = ImageIO.createImageInputStream(stream);
+		        imageReader.setInput(imageInputStream, false);
+		        rect.width = imageReader.getWidth(0);
+		        rect.height = imageReader.getHeight(0);
+				stream.close();
+				break;
+			} catch (Exception e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					if (imageInputStream != null) { 
+						imageInputStream.close();
+						imageInputStream = null;
+					}
+					if (stream != null) {
+						stream.close();
+						stream = null;
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+    	}
+
 		return rect;
 	}
 
