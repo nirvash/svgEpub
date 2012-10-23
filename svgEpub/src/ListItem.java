@@ -1,4 +1,8 @@
 import java.awt.Rectangle;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -102,7 +106,13 @@ public class ListItem implements IFile {
 			}
 		} else if (rarFile != null) {
 			try {
-				return rarFile.getInputStream(entryHeader);
+				ByteArrayOutputStream out = new ByteArrayOutputStream();
+				rarFile.extractFile(entryHeader, out);
+				byte[] data = out.toByteArray();
+				out.close();
+				ByteArrayInputStream in = new ByteArrayInputStream(data);
+				return in;
+//				return rarFile.getInputStream(entryHeader);
 			} catch (Exception e) {
 				e.printStackTrace();
 				return null;
