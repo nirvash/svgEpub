@@ -2,6 +2,7 @@ import java.awt.Rectangle;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 
 
 public class FileItem implements IFile {
@@ -35,6 +36,13 @@ public class FileItem implements IFile {
 	@Override
 	public String getURI() {
 		return file.toURI().toString();
+	}
+
+	@Override
+	public ArrayList<ClipListItem> getClipList() {
+		ArrayList<ClipListItem> list = new ArrayList<ClipListItem>();
+		list.add(new ClipListItem(this.clipRect, ""));
+		return list;
 	}
 	
 

@@ -28,14 +28,14 @@ public class ConfigDialog extends JDialog implements ComponentListener, ActionLi
 	
 	private CustomProperties properties;
 	private JTable table;
-	private mainPanel mainPanel = null;
+	private svgEpubMainPanel mainPanel = null;
 
 	public ConfigDialog(Window parent) {
 		super(parent);
 		initComponents();
 	}
 
-	public ConfigDialog(mainPanel mainPanel, String title, boolean modal,
+	public ConfigDialog(svgEpubMainPanel mainPanel, String title, boolean modal,
 			CustomProperties properties ) {
 		super(mainPanel, title, modal);
 		this.properties = properties;
@@ -209,7 +209,7 @@ public class ConfigDialog extends JDialog implements ComponentListener, ActionLi
 		setVisible(false);
 	}
 
-	public void setMainPanel(mainPanel mainPanel) {
+	public void setMainPanel(svgEpubMainPanel mainPanel) {
 		this.mainPanel = mainPanel;
 	}
 

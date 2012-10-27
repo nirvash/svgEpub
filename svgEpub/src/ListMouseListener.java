@@ -39,7 +39,7 @@ public class ListMouseListener implements MouseListener {
 		list.repaint(list.getCellBounds(index, index));		 
 		
 		// Update preview image
-		itemSelectListener.updatePreviewImage(index);
+		itemSelectListener.updateItem(index);
 	}
 
 	@Override

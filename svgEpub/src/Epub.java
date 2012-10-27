@@ -116,7 +116,7 @@ public class Epub {
 	}
 
 	private boolean createPages(Book book, ArrayList<ListItem> list, ProgressMonitor monitor) throws IOException {
-		InputStream is = mainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
+		InputStream is = svgEpubMainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
 		String template = convertInputStreamToString(is);
 		
 		int page = 1;
@@ -127,26 +127,21 @@ public class Epub {
 				monitor.close();
 				return false;
 			}
-			String pageName = String.format("page_%04d", page);
-			String pageFile = pageName + ".xhtml";
+			
 			if (PathUtil.isSvgFile(item.getFilename())) {
-				createSvgPage(book, template, pageName, pageFile, item);
-				page++;
+				page = createSvgPage(book, page, template, item);
 			} else if (PathUtil.isRasterFile(item.getFilename())) {
 				if (item.isSelected()) {
 					File svgFile = convertToSvgFromImage(item);
 					if (svgFile != null) {
 						IFile svgItem = new FileItem(svgFile, item.getClipRect());
-						createSvgPage(book, template, pageName, pageFile, svgItem);
+						page = createSvgPage(book, page, template, svgItem);
 						svgFile.delete();
-						page++;
 					} else {
-						createImagePage(book, template, pageName, pageFile, item);
-						page++;
+						page = createImagePage(book, page, template, item);
 					}
 				} else {
-					createImagePage(book, template, pageName, pageFile, item);
-					page++;
+					page = createImagePage(book, page, template, item);
 				}
 			}
 		}	
@@ -287,56 +282,75 @@ public class Epub {
 		}
 	}
 
-	private void createImagePage(Book book, String template, String pageName,
-			String pageFile, IFile item)  {
+	private int createImagePage(Book book, int page, String template, IFile item)  {
 		try {
+			String resourceName = String.format("page_%04d", page);
 	    	String extension = PathUtil.getExtension(item.getFilename());
-	    	String imageURI = "images/" + pageName + "." + extension;
-	    	
-			Rectangle imageRect = ImageUtil.getImageSize(item);
-			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true, 0);
-			doc.normalizeDocument();
+	    	String imageURI = "images/" + resourceName + "." + extension;
 
-			String svgTag = serializeDocument(doc);
-			String html = template.replaceAll("%%BODY%%", svgTag);
-			
-			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
-			book.addSection(pageName, new Resource(bi, pageFile));
-			
 			InputStream stream = item.getInputStream();
 			book.getResources().add(new Resource(stream, imageURI));
 			stream.close();
+
+			ArrayList<ClipListItem> clipList = item.getClipList();
+			for (ClipListItem clipItem : clipList) {
+				String pageName = String.format("page_%04d", page);
+				String pageFile = pageName + ".xhtml";
+
+				Rectangle imageRect = ImageUtil.getImageSize(item);
+		    	Rectangle clipRect = clipItem.getClipRect();
+				Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
+				doc.normalizeDocument();
+	
+				String svgTag = serializeDocument(doc);
+				String html = template.replaceAll("%%BODY%%", svgTag);
+				
+				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+				book.addSection(pageName, new Resource(bi, pageFile));
+				bi.close();
+				page++;
+			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
+		return page;
 	}
 
 	
-	private void createSvgPage(Book book, String template, String pageName,
-			String pageFile, IFile item) throws IOException,
+	private int createSvgPage(Book book, int page, String template, IFile item) throws IOException,
 			UnsupportedEncodingException {
 		try {
+			String resourceName = String.format("page_%04d", page);
 	    	String extension = PathUtil.getExtension(item.getFilename());
-	    	String imageURI = "images/" + pageName + "." + extension;
-        
-	    	Rectangle imageRect = ImageUtil.getSvgSize(item);
-			Document doc = ImageUtil.createSvgDocument(item.getClipRect(), imageRect, imageURI, true, 0);
-			doc.normalizeDocument();
-
-			String svgTag = serializeDocument(doc);
-			String html = template.replaceAll("%%BODY%%", svgTag);
-			
-			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
-			book.addSection(pageName, new Resource(bi, pageFile));
-			bi.close();
+	    	String imageURI = "images/" + resourceName + "." + extension;
 
 			InputStream stream = item.getInputStream();
 			book.getResources().add(new Resource(stream, imageURI));
 			stream.close();
+			
+			ArrayList<ClipListItem> clipList = item.getClipList();
+			for (ClipListItem clipItem : clipList) {
+				String pageName = String.format("page_%04d", page);
+				String pageFile = pageName + ".xhtml";
+	        
+		    	Rectangle imageRect = ImageUtil.getSvgSize(item);
+		    	Rectangle clipRect = clipItem.getClipRect();
+				Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
+				doc.normalizeDocument();
+	
+				String svgTag = serializeDocument(doc);
+				String html = template.replaceAll("%%BODY%%", svgTag);
+				
+				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+				book.addSection(pageName, new Resource(bi, pageFile));
+				bi.close();
+				page++;
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		return page;
 	}
 
 	private String serializeDocument(Document doc) {

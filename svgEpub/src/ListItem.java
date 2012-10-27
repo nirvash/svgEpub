@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
@@ -28,7 +29,9 @@ public class ListItem implements IFile {
 	private File svgFile = null;
 	private boolean isSelected = false;
 	private boolean enableSelect = true;
-	private Rectangle clipRect = null;
+	
+	private ArrayList<ClipListItem> clipRectList = new ArrayList<ClipListItem>();
+	private int selectedClipIndex = 0;
 	
 	public ListItem(File file) {
 		this.zipFile = null;
@@ -41,6 +44,7 @@ public class ListItem implements IFile {
 		} else if (PathUtil.isSvgFile(file)) {
 			this.enableSelect = false;
 		}
+		initClipRect();
 	}
 	
 	public ListItem(File file, ZipFile zipFile, String entryName) {
@@ -54,6 +58,7 @@ public class ListItem implements IFile {
 		} else if (PathUtil.isSvgFile(entryName)) {
 			this.isSelected = false;
 		}
+		initClipRect();
 	}
 
 	public ListItem(File file, Archive rarFile, FileHeader fh) {
@@ -67,6 +72,12 @@ public class ListItem implements IFile {
 		} else if (PathUtil.isSvgFile(fh.getFileNameString())) {
 			this.isSelected = false;
 		}
+		initClipRect();
+	}
+	
+	private void initClipRect() {
+		this.clipRectList.clear();
+		this.clipRectList.add(new ClipListItem(null, "clip 01"));
 	}
 
 	public boolean enableSelect() {
@@ -135,12 +146,38 @@ public class ListItem implements IFile {
 	}
 
 	public Rectangle getClipRect() {
-		return clipRect;
+		if (clipRectList.size() > 0) {
+			ClipListItem item = clipRectList.get(selectedClipIndex);
+			return item.getClipRect();
+		} else {
+			return null;
+		}
+	}
+	
+
+	public int getSelectedClipIndex() {
+		return selectedClipIndex;
+	}
+	
+	public void setSelectedClipIndex(int clipIindex) {
+		this.selectedClipIndex = clipIindex;
 	}
 
-	public void setClipRect(Rectangle clipRect) {
-		this.clipRect = clipRect;
+	public ArrayList<ClipListItem> getClipList() {
+		return this.clipRectList;
 	}
+	
+	public void setClipList(ArrayList<ClipListItem> list) {
+		this.clipRectList = list;
+	}
+
+
+	public void setClipRect(Rectangle clipRect) {
+		clipRectList.clear();
+		clipRectList.add(new ClipListItem(clipRect, "clip 01"));
+		this.selectedClipIndex = 0;
+	}
+	
 
 	public String getDirName() {
 		if (zipFile != null) {
@@ -198,5 +235,4 @@ public class ListItem implements IFile {
 			return file.toURI().toString();
 		}
 	}
-
 }

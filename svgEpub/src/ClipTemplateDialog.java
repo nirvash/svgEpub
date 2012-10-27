@@ -5,6 +5,7 @@ import java.awt.Font;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
@@ -26,13 +27,13 @@ public class ClipTemplateDialog extends JDialog  {
 	private JList jList0;
 	private JScrollPane jScrollPane0;
 	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
-	private mainPanel mainPanel;
+	private svgEpubMainPanel mainPanel;
 
 	
 	public ClipTemplateDialog() {
 		initComponents();
 	}
-	public ClipTemplateDialog(mainPanel mainPanel, String string, boolean b,
+	public ClipTemplateDialog(svgEpubMainPanel mainPanel, String string, boolean b,
 			CustomProperties properties) {
 		initComponents();
 	}
@@ -56,8 +57,10 @@ public class ClipTemplateDialog extends JDialog  {
 		if (jList0 == null) {
 			jList0 = new JList();
 			DefaultListModel listModel = new DefaultListModel();
-			listModel.addElement(new ClipTemplate("Comic B5 Cover", ClipTemplate.Type.B5_Cover));
-			listModel.addElement(new ClipTemplate("2 Page", ClipTemplate.Type.TwoPage));
+			ArrayList<ClipTemplate> list = ClipTemplate.getList();
+			for (ClipTemplate template : list) {
+				listModel.addElement(template);
+			}
 			jList0.setModel(listModel);
 		}
 		return jList0;
@@ -105,7 +108,7 @@ public class ClipTemplateDialog extends JDialog  {
 		}
 		return jPanel0;
 	}
-	public void setMainPanel(mainPanel mainPanel) {
+	public void setMainPanel(svgEpubMainPanel mainPanel) {
 		this.mainPanel = mainPanel;
 	}
 	

@@ -1,35 +1,23 @@
-import java.awt.CardLayout;
-import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.ArrayList;
 
-import javax.imageio.ImageIO;
 import javax.swing.DefaultListModel;
 import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
-import org.apache.batik.swing.JSVGCanvas;
-
-
 public class ItemSelectionListener implements ListSelectionListener {
-	private CardLayout cardLayout;
-	private JPanel parent;
 	private CustomSVGCanvas svgCanvas;
-	private NavigableImagePanel imagePanel;
-	private DefaultListModel model = null;
+	private DefaultListModel fileListmodel = null;
+	private ClipListModel clipListModel = null;
+	private JList clipList = null;
 	private boolean enabledPreview = true;
 
-	public ItemSelectionListener(CardLayout layout, JPanel panel, NavigableImagePanel imagePanel, CustomSVGCanvas svgCanvas, DefaultListModel fileListModel) {
-		cardLayout = layout;
-		parent = panel;
-		this.imagePanel = imagePanel;
+	public ItemSelectionListener(CustomSVGCanvas svgCanvas, DefaultListModel fileListModel, ClipListModel clipListModel, JList clipList) {
 		this.svgCanvas = svgCanvas;
-		model = fileListModel;
+		this.fileListmodel = fileListModel;
+		this.clipListModel = clipListModel;
+		this.clipList = clipList;
 	}
 	
 	public void setEnabledPreview(boolean b) {
@@ -41,16 +29,51 @@ public class ItemSelectionListener implements ListSelectionListener {
 		if (e.getValueIsAdjusting()) return;
 		int index = ((JList)e.getSource()).getSelectedIndex();
 		
-		updatePreviewImage(index);
+		updateItem(index);
 	}
 
-	public void updatePreviewImage(int index) {
+	public void updateItem(int index) {
+		updateClipListModel(index);
+
 		if (index < 0) {
-			cardLayout.first(parent);
-			imagePanel.setImage(null);
+			clipList.clearSelection();
+		} else {
+			ListItem listItem = (ListItem)fileListmodel.get(index);
+			int clipIndex = listItem.getSelectedClipIndex();
+			clipListModel.setUpdating(true);
+			clipList.setSelectedIndex(clipIndex);
+			clipListModel.setUpdating(false);
+		}
+
+		updatePreviewImage(index);
+	}
+	
+	private void updateClipListModel(int index) {
+		if (index < 0) {
+			clipListModel.clear();
 			return;
 		}
-		ListItem listItem = (ListItem)model.get(index);
+		
+		ListItem listItem = (ListItem)fileListmodel.get(index);
+		int selectedClipIndex = listItem.getSelectedClipIndex();
+		clipListModel.setUpdating(true);
+		clipListModel.clear();
+
+		ArrayList<ClipListItem> list = listItem.getClipList();
+		for (ClipListItem item : list) {
+			clipListModel.addElement(item);
+		}
+		clipListModel.setUpdating(false);
+
+		listItem.setSelectedClipIndex(selectedClipIndex);
+	}
+	
+	private void updatePreviewImage(int index) {
+		if (index < 0) {
+			svgCanvas.setURI(null);
+			return;
+		}
+		ListItem listItem = (ListItem)fileListmodel.get(index);
 		IFile item = listItem;
 		String filename = item.getFilename();
 		if (enabledPreview && PathUtil.isRasterFile(filename) && listItem.isSelected()) {
@@ -67,17 +90,12 @@ public class ItemSelectionListener implements ListSelectionListener {
 			}
 		}
 
-		
-		if (PathUtil.isSvgFile(item.getFilename())) {
-			cardLayout.last(parent);
-			svgCanvas.setListItem(listItem);
-			svgCanvas.setPreview(enabledPreview);
-			svgCanvas.setSvg(item);
-		} else {
-			cardLayout.last(parent);
-			svgCanvas.setListItem(listItem);
-			svgCanvas.setPreview(enabledPreview);
+		svgCanvas.setListItem(listItem);
+		svgCanvas.setPreview(enabledPreview);
+		if (PathUtil.isImageFile(item.getFilename())) {
 			svgCanvas.setImage(item);
+		} else {
+			svgCanvas.setSvg(item);
 		}
 	}
 }

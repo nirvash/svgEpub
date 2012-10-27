@@ -369,7 +369,7 @@ public class ImageUtil {
 				rect.height = parse(height.getValue());
 			}
 		} catch (Exception e) {
-			
+			JOptionPane.showMessageDialog(null, item.getFilename() + ":" + e.getMessage());
 		}
 		
 		return rect;

@@ -64,7 +64,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		initComponents();
 	}
 
-	public SaveDialog(mainPanel mainPanel, String title, boolean modal,
+	public SaveDialog(svgEpubMainPanel mainPanel, String title, boolean modal,
 			CustomProperties properties) {
 		super(mainPanel, title, modal);
 		this.properties = properties;
