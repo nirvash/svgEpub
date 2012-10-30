@@ -103,6 +103,9 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		
 		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
+		
+		String workingDir = System.getProperty("user.dir");
+		System.setProperty("jna.library.path", workingDir);
 	}
 	
 	private JButton getJButtonClipTemplate() {
@@ -146,6 +149,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			menuItem2.setActionCommand("PasteClip");
 			menuItem2.addActionListener(this);
 			jListPopupMenu.add(menuItem2);
+			
+			JMenuItem menuItem3 = new JMenuItem("OCR");
+			menuItem3.setActionCommand("OCR");
+			menuItem3.addActionListener(this);
+			jListPopupMenu.add(menuItem3);
 		}
 		return jListPopupMenu;
 	}
@@ -511,6 +519,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			checkItems(true);
 		} else if (e.getActionCommand().equals("Uncheck")) {
 			checkItems(false);
+		} else if (e.getActionCommand().equals("OCR")) {
+			int index = jListFile.getSelectedIndex();
+			if (index == -1) return;
+			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
+			Ocr.test(item);
 		}
 
 	}
