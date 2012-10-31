@@ -118,6 +118,7 @@ public class Epub {
 	private boolean createPages(Book book, ArrayList<ListItem> list, ProgressMonitor monitor) throws IOException {
 		InputStream is = svgEpubMainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
 		String template = convertInputStreamToString(is);
+		is.close();
 		
 		int page = 1;
 

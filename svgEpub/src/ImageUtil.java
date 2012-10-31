@@ -64,9 +64,11 @@ public class ImageUtil {
 		tmpFile.deleteOnExit();
 		File tmpOutFile = new File(path + "tmpout.bmp");
 		tmpOutFile.deleteOnExit();
-		
+/*		
 		String outFilename = path + item.getFilename();
 		outFilename = outFilename.replaceAll("\\.[^.]*$", ".bmp");
+*/
+		String outFilename = UUID.randomUUID() + ".bmp";
 		IplImage image_source;
 		
 		try {
