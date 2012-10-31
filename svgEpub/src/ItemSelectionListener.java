@@ -92,7 +92,7 @@ public class ItemSelectionListener implements ListSelectionListener {
 
 		svgCanvas.setListItem(listItem);
 		svgCanvas.setPreview(enabledPreview);
-		if (PathUtil.isImageFile(item.getFilename())) {
+		if (PathUtil.isRasterFile(item.getFilename())) {
 			svgCanvas.setImage(item);
 		} else {
 			svgCanvas.setSvg(item);
