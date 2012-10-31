@@ -14,8 +14,13 @@ public class ClipListItem {
 		return clipRect;
 	}
 	
+	public void setClipRect(Rectangle clipRect) {
+		this.clipRect = (Rectangle)clipRect.clone();
+	}
+	
 	@Override
 	public String toString() {
 		return clipName;
 	}
+
 }

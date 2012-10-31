@@ -487,7 +487,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			int index = jListFile.getSelectedIndex();
 			if (index == -1) return;
 			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
-			item.setClipRect(null);
+			item.resetClipRect();
 			itemSelectionListener.updateItem(index);
 		} else if (e.getActionCommand().equals("AutoClip")) {
 			int index = jListFile.getSelectedIndex();

@@ -146,7 +146,7 @@ public class ListItem implements IFile {
 	}
 
 	public Rectangle getClipRect() {
-		if (clipRectList.size() > 0) {
+		if (clipRectList.size() > 0 && clipRectList.size() > selectedClipIndex) {
 			ClipListItem item = clipRectList.get(selectedClipIndex);
 			return item.getClipRect();
 		} else {
@@ -173,10 +173,16 @@ public class ListItem implements IFile {
 
 
 	public void setClipRect(Rectangle clipRect) {
+		ClipListItem item = clipRectList.get(this.selectedClipIndex);
+		item.setClipRect(clipRect);
+	}
+	
+	public void resetClipRect() {
 		clipRectList.clear();
-		clipRectList.add(new ClipListItem(clipRect, "clip 01"));
+		clipRectList.add(new ClipListItem(null, "clip 01"));
 		this.selectedClipIndex = 0;
 	}
+
 	
 
 	public String getDirName() {
