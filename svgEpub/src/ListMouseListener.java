@@ -28,12 +28,12 @@ public class ListMouseListener implements MouseListener {
         }
                
 		ListItem item = (ListItem)list.getModel().getElementAt(index);
-		if (!item.enableSelect()) {
+		if (!item.canConvertToSVG()) {
 			return;
 		}
 
 		// Toggle selected state
-		item.setSelected(!item.isSelected());
+		item.setConvertToSVG(!item.isConvertToSVG());
 
 		// Repaint cell
 		list.repaint(list.getCellBounds(index, index));		 

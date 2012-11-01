@@ -17,6 +17,7 @@ import java.util.Enumeration;
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.DropMode;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
@@ -27,6 +28,7 @@ import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
+import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.ListSelectionListener;
@@ -52,7 +54,6 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private ClipListModel clipListModel;
 	private ClipListItemSelectionListener clipListItemSelectionListener;
 	
-	private JButton jButtonRemove;
 	private JButton jButtonClear;
 	private JButton jButtonCheck;
 	private JButton jButtonUncheck;
@@ -99,13 +100,15 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		
 		Epub.setProperty(properties);
 		add(getJPanelMain());
-		setSize(640, 452);
+		setSize(800, 600);
 		
 		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 		
 		String workingDir = System.getProperty("user.dir");
 		System.setProperty("jna.library.path", workingDir);
+		
+
 	}
 	
 	private JButton getJButtonClipTemplate() {
@@ -139,6 +142,16 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private JPopupMenu getJListPopupMenu() {
 		if (jListPopupMenu == null) {
 			jListPopupMenu = new JPopupMenu();
+			
+			JMenuItem menuItemRemove = new JMenuItem("Remove");
+			menuItemRemove.setActionCommand("Remove");
+			menuItemRemove.addActionListener(this);
+			jListPopupMenu.add(menuItemRemove);
+			
+			JMenuItem menuItemAnalyze= new JMenuItem("Check text or illust");
+			menuItemAnalyze.setActionCommand("Analyze");
+			menuItemAnalyze.addActionListener(this);
+			jListPopupMenu.add(menuItemAnalyze);
 			
 			JMenuItem menuItem1 = new JMenuItem("Copy clip area");
 			menuItem1.setActionCommand("CopyClip");
@@ -236,17 +249,6 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 //			jButton1.setToolTipText("Clear all images");
 		}
 		return jButtonClear;
-	}
-	
-	private JButton getJButtonRemove() {
-		if (jButtonRemove == null) {
-			jButtonRemove = new JButton();
-			jButtonRemove.setText("Remove");
-			jButtonRemove.setActionCommand("Remove");
-			jButtonRemove.addActionListener(this);
-//			jButton0.setToolTipText("Remove selected images");
-		}
-		return jButtonRemove;
 	}
 
 	private JButton getJButtonCheck() {
@@ -377,7 +379,6 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private JPanel getJPanelFileListButton() {
 		if (jPanelFileListButton == null) {
 			jPanelFileListButton = new JPanel();
-			jPanelFileListButton.add(getJButtonRemove());
 			jPanelFileListButton.add(getJButtonClear());
 			jPanelFileListButton.add(getJButtonCheck());
 			jPanelFileListButton.add(getJButtonUncheck());
@@ -445,6 +446,10 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 				frame.pack();
 				frame.setLocationRelativeTo(null);
 				frame.setVisible(true);
+				
+				java.net.URL imageURL = this.getClass().getResource("/resources/icon_text.png");
+				ImageIcon icon = new ImageIcon(imageURL);
+				frame.setIconImage(icon.getImage());
 			}
 		});
 	}
@@ -524,6 +529,34 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			if (index == -1) return;
 			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
 			Ocr.test(item);
+		} else if (e.getActionCommand().equals("Analyze")) {
+			if (jListFile.isSelectionEmpty()) return;
+			
+			final Object[] items = jListFile.getSelectedValues();
+			final ProgressMonitor monitor = new ProgressMonitor(this, "Wait for a while", "Check whether illust or text", 0, items.length);
+			monitor.setMillisToDecideToPopup(0);
+			monitor.setMillisToPopup(0);
+			monitor.setProgress(0);
+			
+			Thread th = new Thread() {
+				@Override
+				public void run() {
+					int i = 0;
+					for (Object item : items) {
+						((ListItem)item).analyze();
+						monitor.setProgress(i++);
+					}
+					monitor.close();
+					
+					int[] indicies = jListFile.getSelectedIndices();
+					int begin = indicies[0];
+					int end = indicies[indicies.length-1];
+					BookListModel model = (BookListModel)jListFile.getModel();
+					model.notifyModelUpdate(begin, end);
+				}
+			};
+			
+			th.start();
 		}
 
 	}
@@ -532,7 +565,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		if (jListFile.isSelectionEmpty()) return;
 		Object[] items = jListFile.getSelectedValues();
 		for (Object item : items) {
-			((ListItem)item).setSelected(check);
+			((ListItem)item).setConvertToSVG(check);
 		}
 		itemSelectionListener.updateItem(jListFile.getSelectedIndex());
 		

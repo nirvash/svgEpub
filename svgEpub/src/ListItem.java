@@ -27,8 +27,8 @@ public class ListItem implements IFile {
 	private FileHeader entryHeader;
 	
 	private File svgFile = null;
-	private boolean isSelected = false;
-	private boolean enableSelect = true;
+	private boolean isConvertToSVG = false;
+	private boolean canConvertToSVG = true;
 	
 	private ArrayList<ClipListItem> clipRectList = new ArrayList<ClipListItem>();
 	private int selectedClipIndex = 0;
@@ -40,9 +40,9 @@ public class ListItem implements IFile {
 		this.entryHeader = null;
 		this.file = file;
 		if (PathUtil.isRasterFile(file)) {
-			this.isSelected = true;
+			this.isConvertToSVG = false;
 		} else if (PathUtil.isSvgFile(file)) {
-			this.enableSelect = false;
+			this.canConvertToSVG = false;
 		}
 		initClipRect();
 	}
@@ -54,9 +54,9 @@ public class ListItem implements IFile {
 		this.entryHeader = null;
 		this.file = file;
 		if (PathUtil.isRasterFile(entryName)) {
-			this.isSelected = true;
+			this.isConvertToSVG = false;
 		} else if (PathUtil.isSvgFile(entryName)) {
-			this.isSelected = false;
+			this.canConvertToSVG = false;
 		}
 		initClipRect();
 	}
@@ -68,9 +68,9 @@ public class ListItem implements IFile {
 		this.entryHeader = fh;
 		this.file = file;
 		if (PathUtil.isRasterFile(fh.getFileNameString())) {
-			this.isSelected = true;
+			this.isConvertToSVG = false;
 		} else if (PathUtil.isSvgFile(fh.getFileNameString())) {
-			this.isSelected = false;
+			this.canConvertToSVG = false;
 		}
 		initClipRect();
 	}
@@ -80,16 +80,16 @@ public class ListItem implements IFile {
 		this.clipRectList.add(new ClipListItem(null, "clip 01"));
 	}
 
-	public boolean enableSelect() {
-		return this.enableSelect;
+	public boolean canConvertToSVG() {
+		return this.canConvertToSVG;
 	}
 	
-	public boolean isSelected() {
-		return isSelected;
+	public boolean isConvertToSVG() {
+		return isConvertToSVG;
 	}
 	
-	public void setSelected(boolean isSelected) {
-		this.isSelected = isSelected;
+	public void setConvertToSVG(boolean isConvert) {
+		this.isConvertToSVG = isConvert;
 	}
 	
 	public String toString() {
@@ -240,5 +240,12 @@ public class ListItem implements IFile {
 		} else {
 			return file.toURI().toString();
 		}
+	}
+
+	public void analyze() {
+		if (!canConvertToSVG) return;
+		if (PathUtil.isSvgFile(getFilename())) return;
+
+		this.isConvertToSVG = ImageUtil.isTextImage(this);
 	}
 }

@@ -5,6 +5,7 @@ import java.io.File;
 
 import javax.swing.BoxLayout;
 import javax.swing.DefaultListCellRenderer;
+import javax.swing.ImageIcon;
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JList;
@@ -20,14 +21,23 @@ public class FileRenderer extends JPanel implements ListCellRenderer {
 	private static final long serialVersionUID = 1L;	
 	private JLabel label = new JLabel();
 	private JCheckBox checkbox =  new JCheckBox();
+	static private ImageIcon[] icons = new ImageIcon[2];
 	
 	protected static Border noFocusBorder = new EmptyBorder(1, 1, 1, 1);
 	private static final Border SAFE_NO_FOCUS_BORDER = new EmptyBorder(1, 1, 1, 1);
 	
+
 	public FileRenderer() {
 		setLayout(new BoxLayout(this, BoxLayout.X_AXIS));
 		add(checkbox);
 		add(label);
+		
+		if (icons[0] == null) {
+			java.net.URL textURL = this.getClass().getResource("/resources/icon_text.png");
+			java.net.URL illustURL = this.getClass().getResource("/resources/icon_illust.png");
+			icons[0] = new ImageIcon(textURL);
+			icons[1] = new ImageIcon(illustURL);
+		}
 	}
 	
 
@@ -61,13 +71,15 @@ public class FileRenderer extends JPanel implements ListCellRenderer {
 			setForeground(list.getForeground());
 		}
 		
-		checkbox.setSelected(item.isSelected());
+		checkbox.setSelected(item.isConvertToSVG());
+		label.setIcon(icons[item.isConvertToSVG() ? 0 : 1]);
 		
 		setEnabled(list.isEnabled());
-		checkbox.setEnabled(item.enableSelect());
+		checkbox.setEnabled(item.canConvertToSVG());
 		label.setEnabled(list.isEnabled());		
 
 		label.setFont(list.getFont());
+		
 
 		/*
 		Border border = null;

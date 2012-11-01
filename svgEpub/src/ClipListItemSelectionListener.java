@@ -49,7 +49,7 @@ public class ClipListItemSelectionListener implements ListSelectionListener {
 		ListItem listItem = (ListItem)bookModel.get(index);
 		IFile item = listItem;
 		String filename = item.getFilename();
-		if (enabledPreview && PathUtil.isRasterFile(filename) && listItem.isSelected()) {
+		if (enabledPreview && PathUtil.isRasterFile(filename) && listItem.isConvertToSVG()) {
 			File file = null;
 			if (listItem.getSvgFile() != null) {
 				file = listItem.getSvgFile();

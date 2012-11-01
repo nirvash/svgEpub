@@ -132,7 +132,7 @@ public class Epub {
 			if (PathUtil.isSvgFile(item.getFilename())) {
 				page = createSvgPage(book, page, template, item);
 			} else if (PathUtil.isRasterFile(item.getFilename())) {
-				if (item.isSelected()) {
+				if (item.isConvertToSVG()) {
 					File svgFile = convertToSvgFromImage(item);
 					if (svgFile != null) {
 						IFile svgItem = new FileItem(svgFile, item.getClipRect());
