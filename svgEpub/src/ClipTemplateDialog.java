@@ -2,7 +2,6 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -26,8 +25,8 @@ public class ClipTemplateDialog extends JDialog  {
 	private JPanel jPanel2;
 	private JList jList0;
 	private JScrollPane jScrollPane0;
-	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
 	private svgEpubMainPanel mainPanel;
+	private static final String PREFERRED_LOOK_AND_FEEL = "javax.swing.plaf.metal.MetalLookAndFeel";
 
 	
 	public ClipTemplateDialog() {
@@ -44,7 +43,7 @@ public class ClipTemplateDialog extends JDialog  {
 		setForeground(Color.black);
 		add(getJPanel0(), BorderLayout.SOUTH);
 		add(getJScrollPane0(), BorderLayout.CENTER);
-		setSize(320, 127);
+		setSize(320, 162);
 	}
 	private JScrollPane getJScrollPane0() {
 		if (jScrollPane0 == null) {

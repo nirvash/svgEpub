@@ -48,11 +48,13 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private JScrollPane jScrollPaneFile;
 	private JList jListFile;
 	private ItemSelectionListener itemSelectionListener;
+	private JPopupMenu jListFilePopupMenu;
 	
 	private JScrollPane jScrollPaneClip;
 	private JList jListClip;
 	private ClipListModel clipListModel;
 	private ClipListItemSelectionListener clipListItemSelectionListener;
+	private JPopupMenu jListClipPopupMenu;
 	
 	private JButton jButtonClear;
 	private JButton jButtonCheck;
@@ -72,7 +74,6 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private JButton jButtonResetClip;
 	private JPanel jPanel0;
 	
-	private JPopupMenu jListPopupMenu;
 	private Rectangle copyClipRectangle = null;
 	
 	private JButton jButtonAutoClip;
@@ -139,36 +140,54 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		return jPanel0;
 	}
 
-	private JPopupMenu getJListPopupMenu() {
-		if (jListPopupMenu == null) {
-			jListPopupMenu = new JPopupMenu();
+	private JPopupMenu getJListFilePopupMenu() {
+		if (jListFilePopupMenu == null) {
+			jListFilePopupMenu = new JPopupMenu();
 			
 			JMenuItem menuItemRemove = new JMenuItem("Remove");
 			menuItemRemove.setActionCommand("Remove");
 			menuItemRemove.addActionListener(this);
-			jListPopupMenu.add(menuItemRemove);
+			jListFilePopupMenu.add(menuItemRemove);
 			
 			JMenuItem menuItemAnalyze= new JMenuItem("Check text or illust");
 			menuItemAnalyze.setActionCommand("Analyze");
 			menuItemAnalyze.addActionListener(this);
-			jListPopupMenu.add(menuItemAnalyze);
+			jListFilePopupMenu.add(menuItemAnalyze);
 			
 			JMenuItem menuItem1 = new JMenuItem("Copy clip area");
 			menuItem1.setActionCommand("CopyClip");
 			menuItem1.addActionListener(this);
-			jListPopupMenu.add(menuItem1);
+			jListFilePopupMenu.add(menuItem1);
 
 			JMenuItem menuItem2 = new JMenuItem("Paste clip area");
 			menuItem2.setActionCommand("PasteClip");
 			menuItem2.addActionListener(this);
-			jListPopupMenu.add(menuItem2);
+			jListFilePopupMenu.add(menuItem2);
 			
 			JMenuItem menuItem3 = new JMenuItem("OCR");
 			menuItem3.setActionCommand("OCR");
 			menuItem3.addActionListener(this);
-			jListPopupMenu.add(menuItem3);
+			jListFilePopupMenu.add(menuItem3);
 		}
-		return jListPopupMenu;
+		return jListFilePopupMenu;
+	}
+	
+
+	private JPopupMenu getJListClipPopupMenu() {
+		if (jListClipPopupMenu == null) {
+			jListClipPopupMenu = new JPopupMenu();
+			
+			JMenuItem menuItemRemove = new JMenuItem("Remove");
+			menuItemRemove.setActionCommand("RemoveClip");
+			menuItemRemove.addActionListener(this);
+			jListClipPopupMenu.add(menuItemRemove);
+			
+			JMenuItem menuItemAdd = new JMenuItem("Add");
+			menuItemAdd.setActionCommand("AddClip");
+			menuItemAdd.addActionListener(this);
+			jListClipPopupMenu.add(menuItemAdd);
+		}
+		return jListClipPopupMenu;
 	}
 
 	private JButton getJButtonResetClip() {
@@ -294,7 +313,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		    jListFile.addListSelectionListener(listner);
 		    jListFile.addMouseListener(new ListMouseListener(listner));
 //		    jListFile.setToolTipText("Drop image files here");
-		    jListFile.addMouseListener(new PopClickListener());
+		    jListFile.addMouseListener(new ListFilePopClickListener());
 		}
 		return jListFile;
 	}
@@ -318,7 +337,21 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		if (jListClip == null) {
 			jListClip = new JList(clipListModel);
 			jListClip.setModel(getClipListModel());
-//			jListClip.setTransferHandler(new FileDropHandler(fileListModel));
+			ListClipDropHandler.onMoveCallback callback = new ListClipDropHandler.onMoveCallback() {
+				@Override
+				public void onMove() {
+					ListItem item = (ListItem)jListFile.getSelectedValue();
+					
+					Object[] cliplist = clipListModel.toArray();
+					ArrayList<ClipListItem> cliparray = item.getClipList();
+					for (int i=0; i<cliplist.length; i++) {
+						cliparray.set(i, (ClipListItem)cliplist[i]);
+					}
+					itemSelectionListener.updateItem(jListFile.getSelectedIndex());
+				}
+			};
+
+			jListClip.setTransferHandler(new ListClipDropHandler(clipListModel, callback));
 //			jListClip.setCellRenderer(new FileRenderer());
 			jListClip.getSelectionModel().setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 			jListClip.setDropMode(DropMode.INSERT);
@@ -330,7 +363,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			jListClip.addListSelectionListener(getClipListItemSelectionListener());
 //			jListClip.addMouseListener(new ListMouseListener(getItemSelectionListener(fileListModel)));
 //		    jListClip.setToolTipText("Drop image files here");
-//			jListClip.addMouseListener(new PopClickListener());
+			jListClip.addMouseListener(new ListClipPopClickListener());
 		}
 		return jListClip;
 	}
@@ -529,6 +562,34 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			if (index == -1) return;
 			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
 			Ocr.test(item);
+		} else if (e.getActionCommand().equals("RemoveClip")) {
+			if (jListFile.isSelectionEmpty()) return;
+			if (jListClip.isSelectionEmpty()) return;
+
+			ListItem item = (ListItem)jListFile.getSelectedValue();
+			int[] indices = jListClip.getSelectedIndices();
+			ArrayList<ClipListItem> cliplist = item.getClipList();
+			
+			int numRemoved = 0;
+			for (int index : indices) {
+				cliplist.remove(index - numRemoved++);
+			}
+			
+			if (cliplist.size() == 0) {
+				item.resetClipRect();
+			} else {
+				item.setClipList(cliplist);
+			}
+			itemSelectionListener.updateItem(jListFile.getSelectedIndex());
+		} else if (e.getActionCommand().equals("AddClip")) {
+			if (jListFile.isSelectionEmpty()) return;
+			ListItem item = (ListItem)jListFile.getSelectedValue();
+			ArrayList<ClipListItem> cliplist = item.getClipList();
+			
+			String clipName = String.format("clip %02d", cliplist.size()+1);
+			cliplist.add(new ClipListItem(null, clipName));
+			
+			itemSelectionListener.updateItem(jListFile.getSelectedIndex());
 		} else if (e.getActionCommand().equals("Analyze")) {
 			if (jListFile.isSelectionEmpty()) return;
 			
@@ -625,7 +686,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		itemSelectionListener.updateItem(jListFile.getSelectedIndex());
 	}
 	
-	class PopClickListener extends MouseAdapter {
+	class ListFilePopClickListener extends MouseAdapter {
 	    public void mousePressed(MouseEvent e){
 	        if (e.isPopupTrigger())
 	            doPop(e);
@@ -637,7 +698,23 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	    }
 
 	    private void doPop(MouseEvent e){
-	    	getJListPopupMenu().show(e.getComponent(), e.getX(), e.getY());
+	    	getJListFilePopupMenu().show(e.getComponent(), e.getX(), e.getY());
+	    }
+	}
+	
+	class ListClipPopClickListener extends MouseAdapter {
+	    public void mousePressed(MouseEvent e){
+	        if (e.isPopupTrigger())
+	            doPop(e);
+	    }
+
+	    public void mouseReleased(MouseEvent e){
+	        if (e.isPopupTrigger())
+	            doPop(e);
+	    }
+
+	    private void doPop(MouseEvent e){
+	    	getJListClipPopupMenu().show(e.getComponent(), e.getX(), e.getY());
 	    }
 	}
 
