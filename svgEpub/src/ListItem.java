@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.UUID;
 
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
@@ -32,6 +33,11 @@ public class ListItem implements IFile {
 	
 	private ArrayList<ClipListItem> clipRectList = new ArrayList<ClipListItem>();
 	private int selectedClipIndex = 0;
+	
+	private static CustomProperties properties;
+	public static void setProperties(CustomProperties properties) {
+		ListItem.properties = properties;
+	}
 	
 	public ListItem(File file) {
 		this.zipFile = null;
@@ -216,9 +222,13 @@ public class ListItem implements IFile {
 	}
 	
 	public String getURI() {
+		boolean isDebug = false;
+		if (properties != null) {
+			isDebug = properties.getProperty("debug", "no").equals("yes");
+		}
 		if (zipFile != null || rarFile != null) {
 			String path = PathUtil.getTmpDirectory();
-			path += getFilename();
+			path += UUID.randomUUID().toString() + "." + PathUtil.getExtension(getFilename());
 			File tmpFile = new File(path);
 			if (!tmpFile.exists()) {
 				if (!tmpFile.getParentFile().exists()) {
@@ -236,9 +246,37 @@ public class ListItem implements IFile {
 					return null;
 				}
 			}
+			if (isDebug) {
+				tmpFile = ImageUtil.layoutAnalysis(tmpFile);
+			}
 			return tmpFile.toURI().toString();
 		} else {
-			return file.toURI().toString();
+			if (isDebug) {
+				String path = PathUtil.getTmpDirectory();
+				path += UUID.randomUUID().toString() + "." + PathUtil.getExtension(getFilename());
+				File tmpFile = new File(path);
+				if (!tmpFile.exists()) {
+					if (!tmpFile.getParentFile().exists()) {
+						tmpFile.getParentFile().mkdirs();
+						tmpFile.getParentFile().deleteOnExit();
+					}
+						
+					tmpFile.deleteOnExit();
+					InputStream in = getInputStream();
+					try {
+						ImageUtil.copyFile(in, tmpFile);
+						in.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+						return null;
+					}
+				}
+				tmpFile = ImageUtil.layoutAnalysis(tmpFile);
+	
+				return tmpFile.toURI().toString();
+			} else {
+				return file.toURI().toString();
+			}
 		}
 	}
 

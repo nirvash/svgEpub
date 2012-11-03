@@ -100,6 +100,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		}
 		
 		Epub.setProperty(properties);
+		ListItem.setProperties(properties);
 		add(getJPanelMain());
 		setSize(800, 600);
 		
