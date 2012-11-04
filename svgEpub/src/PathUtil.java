@@ -79,13 +79,4 @@ public class PathUtil {
 			}
 		}
 	}
-
-	static String getTmpDirectory() {
-		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
-		File tmp = new File(path);
-		if (!tmp.exists()) {
-			tmp.mkdirs();
-		}
-		return path;
-	}
 }
