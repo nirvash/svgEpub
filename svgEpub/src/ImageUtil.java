@@ -734,56 +734,102 @@ public class ImageUtil {
 	private static void labeling(IplImage image_source,
 			ArrayList<LayoutElement> elements) {
 		// Check horizontal element
-		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
-			if (le.rect.width > le.rect.height*3) {
-				le.setType(LayoutElement.TYPE_TEXT_HORIZONTAL);
-			}
-		}
+		checkTextHorizontal(elements);
 		
 		// Check vertical element
-		DoubleArrayList widths = new DoubleArrayList();
-		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
-			if (le.rect.height > le.rect.width*3) {
-				le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
-				widths.add(le.rect.width);
-			}
-		}
+		checkTextVertical(elements);
 		
-		double threshold = calcThreshold(widths);
-		// Check ruby element
-		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			if (le.rect.width < threshold) {
-				le.setType(LayoutElement.TYPE_RUBY);
-			}
-		}
-
 		// Detect column
 		Rectangle textColumn = null;
+		textColumn = getTextColumn(elements, textColumn);
+		
+		// Check elements in column
+		checkTextInColumn(elements, textColumn);
+
+		// Check ruby element
+		double rubyThreshold = checkRubyElement(elements);
+
+		// Check ruby element (elements which is next to vertical element)
+		validateRuby(elements);
+
+		// Check multi columns
+		ArrayList<Rectangle> columnList = new ArrayList<Rectangle>();
+		checkMultiColumns(elements, columnList, rubyThreshold);
+		
+		// Align vertical elements
+		alignVerticalTextInColumn(elements, columnList);
+		
+	}
+
+	private static void checkMultiColumns(ArrayList<LayoutElement> elements, 
+			ArrayList<Rectangle> columnList, double rubyThreshold) {
+		DoubleArrayList ylist = new DoubleArrayList();
+		columnList.clear();
+		
+		Rectangle singleColumn = null;
+
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			if (textColumn == null) {
-				textColumn = new Rectangle(le.rect);
+			ylist.add(le.rect.y);
+			if (singleColumn == null) {
+				singleColumn = new Rectangle(le.rect);
 			} else {
-				textColumn.add(le.rect);
+				singleColumn.add(le.rect);
 			}
 		}
 		
-		// Check elements in column
+		double threshold = calcThreshold(ylist);
+		if (threshold == 0) {
+			columnList.add(singleColumn);
+			return;
+		}
+
+		Rectangle topColumn = null, bottomColumn = null;
 		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
-			if (textColumn.intersects(le.rect)) {
-				if (le.rect.width > threshold && textColumn.intersects(le.rect)) {
-					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (le.rect.width < rubyThreshold) continue;
+			if (le.rect.y < threshold) {
+				if (topColumn == null) {
+					topColumn = new Rectangle(le.rect);
 				} else {
-					le.setType(LayoutElement.TYPE_RUBY);
+					topColumn.add(le.rect);
+				}
+
+			} else {
+				if (bottomColumn == null) {
+					bottomColumn = new Rectangle(le.rect);
+				} else {
+					bottomColumn.add(le.rect);
 				}
 			}
-		}		
+		}
 		
-		// Check ruby element (elements which is next to vertical element)
+		if (topColumn == null || bottomColumn == null ||
+			topColumn.isEmpty() || bottomColumn.isEmpty() || topColumn.intersects(bottomColumn)) {
+			columnList.add(singleColumn);
+		} else {
+			columnList.add(topColumn);
+			columnList.add(bottomColumn);
+		}
+	}
+
+	private static void alignVerticalTextInColumn(
+			ArrayList<LayoutElement> elements, ArrayList<Rectangle> columnList) {
+		for (Rectangle column : columnList) {
+			for (LayoutElement le : elements) {
+				if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+				if (column.intersects(le.rect)) {
+					int diff = le.rect.y - column.y;
+					if (diff < le.rect.width*3) {
+						le.rect.y = column.y;
+						le.rect.height += diff;
+					}
+				}
+			}
+		}
+	}
+
+	private static void validateRuby(ArrayList<LayoutElement> elements) {
 		for (LayoutElement le : elements) {
 			if (le.getType() == LayoutElement.TYPE_UNKNOWN) {
 				for (LayoutElement vert : elements) {
@@ -812,31 +858,82 @@ public class ImageUtil {
 				}
 			}
 		}
-		
-		// Align vertical elements
-		// Check elements in column
+	}
+
+	private static void checkTextInColumn(ArrayList<LayoutElement> elements, Rectangle textColumn) {
 		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
 			if (textColumn.intersects(le.rect)) {
-				int diff = le.rect.y - textColumn.y;
-				if (diff < le.rect.width*3) {
-					le.rect.y = textColumn.y;
-					le.rect.height += diff;
-				}
+				le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
 			}
 		}
 	}
 
-	private static double calcThreshold(DoubleArrayList widths) {
+	private static Rectangle getTextColumn(ArrayList<LayoutElement> elements,
+			Rectangle textColumn) {
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (textColumn == null) {
+				textColumn = new Rectangle(le.rect);
+			} else {
+				textColumn.add(le.rect);
+			}
+		}
+		return textColumn;
+	}
+
+	private static double checkRubyElement(ArrayList<LayoutElement> elements) {
+		DoubleArrayList widths = new DoubleArrayList();
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL &&
+				le.getType() != LayoutElement.TYPE_RUBY) continue;
+			widths.add(le.rect.width);
+		}
+		
+		double rubyThreshold = calcThreshold(widths);
+		if (rubyThreshold == 0) return rubyThreshold;
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (le.rect.width < rubyThreshold) {
+				le.setType(LayoutElement.TYPE_RUBY);
+			}
+		}
+		return rubyThreshold;
+	}
+
+	private static void checkTextVertical(
+			ArrayList<LayoutElement> elements) {
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
+			if (le.rect.height > le.rect.width*3) {
+				le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+			}
+		}
+	}
+
+	private static void checkTextHorizontal(ArrayList<LayoutElement> elements) {
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
+			if (le.rect.width > le.rect.height*3) {
+				le.setType(LayoutElement.TYPE_TEXT_HORIZONTAL);
+			}
+		}
+	}
+
+	private static double calcThreshold(DoubleArrayList lengthList) {
+		if (lengthList.size()<4) return 0; // Too few data to analyze
 		double threshold = 0;
-		double avg = Descriptive.mean(widths);
+		double maxIndexBegin = 0;
+		double avg = Descriptive.mean(lengthList);
 		double max = -1.0f;
-		widths.sort();
+		double ravg = 0;
+		lengthList.sort();
 
 		final int limit = (int)avg * 2;
 		int[] hist = new int[limit+1];
 
-		for (double w : widths.elements()) {
+		lengthList.trimToSize();
+		for (double w : lengthList.elements()) {
 			int j = (int)w;
 			if (j > limit) {
 				j = limit;
@@ -844,6 +941,7 @@ public class ImageUtil {
 			hist[j]++;
 		}
 
+		boolean isRepeat = false;
 		for (int i = 0; i < limit; i++) {
 			double n1 = 0;
 			double wn1 = 0;
@@ -888,10 +986,21 @@ public class ImageUtil {
 			double r = b/w;
 			if (r > max) {
 				max = r;
+				isRepeat = true;
+				maxIndexBegin = i;
 				threshold = i;
+				ravg = avg1 / avg2;
+			} else if (r == max && isRepeat) {
+				threshold = (i + maxIndexBegin) / 2;
+			} else {
+				isRepeat = false;
 			}
 		}
 		
+		if (Math.abs(ravg) > 0.7f) {
+			// Maybe single-humped distribution
+			return 0;
+		}
 		return threshold;
 	}
 
