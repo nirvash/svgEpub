@@ -39,13 +39,22 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.events.EventTarget;
 
+import cern.colt.list.DoubleArrayList;
+import cern.jet.stat.Descriptive;
+
 import com.googlecode.javacpp.BytePointer;
+import com.googlecode.javacpp.FloatPointer;
 import com.googlecode.javacpp.Loader;
+import com.googlecode.javacpp.Pointer;
+import com.googlecode.javacpp.PointerPointer;
+import com.googlecode.javacv.cpp.opencv_core.CvMat;
 import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
+import com.googlecode.javacv.cpp.opencv_core.CvPoint3D32f;
 import com.googlecode.javacv.cpp.opencv_core.CvRect;
 import com.googlecode.javacv.cpp.opencv_core.CvScalar;
 import com.googlecode.javacv.cpp.opencv_core.CvSeq;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
+import com.googlecode.javacv.cpp.opencv_ml.CvVectors;
 import com.googlecode.javacv.cpp.opencv_legacy;
 import com.googlecode.javacv.cpp.opencv_objdetect;
 
@@ -143,9 +152,12 @@ public class ImageUtil {
 		CvScalar std_dev= cvScalarAll(0);
 
 		cvAvgSdv(image_hsv, mean, std_dev, null);
-		boolean isColorImage = std_dev.val(1) > 3.0f;
-		boolean containsIllust = std_dev.val(2) > 40.0f;
-		boolean isComplicatedIllust = std_dev.val(2) > 85.0f;
+		double colorH = std_dev.val(0);
+		double colorS = std_dev.val(1);
+		double colorV = std_dev.val(2);
+		boolean isColorImage = colorS > 10.0f;
+		boolean containsIllust = colorV > 40.0f;
+		boolean isComplicatedIllust = colorV > 85.0f;
 		cvReleaseImage(image_hsv);
 		
 		// Binalize
@@ -505,10 +517,6 @@ public class ImageUtil {
 			cvReleaseImage(gray_image);
 			cvReleaseImage(bi_image);
 			
-//			cvClearMemStorage(storage);
-//			cvReleaseMemStorage(storage);
-//			storage.release();
-//			cvReleaseMemStorage(contours.storage());
 			storage.release();
 
 		//	result = null;
@@ -582,23 +590,163 @@ public class ImageUtil {
 		
 		return isColorImage ? false : !isComplicatedIllust;
 	}
+	
+	private static CvRect getMinAreaRect(CvSeq contours) {
+		CvMemStorage storage = cvCreateMemStorage(0);
+		CvSeq points = cvCreateSeq(CV_SEQ_ELTYPE_POINT, Loader.sizeof(CvSeq.class), Loader.sizeof(CvPoint.class), storage);
+		while (contours != null && !contours.isNull()) {
+            if (contours.elem_size() > 0) {
+            	CvRect cr = cvBoundingRect(contours, 1);
+            	cvSeqPush(points, new CvPoint(cr.x(), cr.y()));
+            	cvSeqPush(points, new CvPoint(cr.x(), cr.y()+cr.height()));
+            	cvSeqPush(points, new CvPoint(cr.x()+cr.width(), cr.y()));
+            	cvSeqPush(points, new CvPoint(cr.x()+cr.width(), cr.y()+cr.height()));
+            }
+            contours = contours.h_next();
+		}
+		CvRect rect = cvBoundingRect(points, 0);
+		cvClearSeq(points);
+		cvReleaseMemStorage(storage);
+		return rect;
+	}
+	
+	public static void deskew(IplImage image, double angle, CvRect rect) {
+/*
+		cvDrawRect(image, new CvPoint(rect.x(), rect.y()), new CvPoint(rect.x()+rect.width(), rect.y()+rect.height()), 
+				   CvScalar.RED, 1, 0, 0);
+*/
+		if (angle == 0.0f) return;
+		
+		CvMat rotMat = cvCreateMat(2, 3, CV_32FC1);
+		CvPoint2D32f center = new CvPoint2D32f(rect.x()+rect.width()/2, rect.y()+rect.height()/2);
+		double degree = Math.toDegrees(angle);
+		cv2DRotationMatrix(center, degree, 1, rotMat);
+		cvWarpAffine(image, image, rotMat, CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS, cvScalarAll(255));
+	}
+	
+	private static double calcSkew(ArrayList<LineElement> group, IplImage image) {
+		double angle = 0;
+		DoubleArrayList angles = new DoubleArrayList();
+		for (LineElement le : group) {
+			if (le.rect.height < le.rect.width*3) continue;
+			if (le.elements.size() < 20) continue;
+			double theta = le.calcAngle(image);
+			if (theta < -Math.PI/2) theta = Math.PI + theta;
+			angles.add(theta);
+		}
+		if (angles.size()>0) {
+			angles.sort();
+			int percent = 5;
+			int n = angles.size();
+			int k = (int)Math.round(n * ( percent / 100.0f) / 2.0f);
+			if (n > 10 && k == 0) k = 1;
+			double mean = Descriptive.mean(angles);
+			angle = Descriptive.trimmedMean(angles, mean, k, k);
+		}
+		
+		return angle;
+	}
+
+	
+	public static double calcSkew(IplImage image) {
+		IplImage image_src = cvCloneImage(image);
+
+//		cvSaveImage("test_src_in.png", image_src);
+		IplImage image_test = cvCloneImage(image_src);
+		cvNot(image_test, image_test);
+		double length = image_src.height() / 3.f;
+
+//		cvNot(image_src, image_src);
+		cvCanny(image_src, image_src, 50, 200, 3);
+//		cvSaveImage("test_src_canny.png", image_src);
+
+		CvMemStorage storage = CvMemStorage.create();
+		double angle = 0;
+		int num_lines = 0;
+		/*
+		CvSeq lines = cvHoughLines2(image_src, storage, CV_HOUGH_PROBABILISTIC, 1, Math.PI/180, 40, length, 20);
+
+		for (int i=0; i<lines.total(); i++) {
+			Pointer point = cvGetSeqElem(lines, i);
+			CvPoint p1 = new CvPoint(point).position(0);
+			CvPoint p2 = new CvPoint(point).position(1);
+			cvLine(image_test, p1, p2, CvScalar.BLACK, 3, 8, 0);
+			angle += Math.atan2((double)(p2.y() - p1.y()), (double)(p2.x() - p1.x()));
+		}
+		*/
+		CvSeq lines = cvHoughLines2(image_src, storage, CV_HOUGH_STANDARD, 1, Math.PI/180, 50, 0, 0);
+		for (int i=0; i < Math.min(lines.total(),  100); i++) {
+			FloatPointer cvline = new FloatPointer(cvGetSeqElem(lines, i));
+			double rho = cvline.position(0).get();
+			double theta = cvline.position(1).get();
+			double a = Math.cos(theta);
+			double b = Math.sin(theta);
+			double x0 = a * rho;
+			double y0 = b * rho;
+			CvPoint p1 = new CvPoint((int)Math.round(x0 + 1000*(-b)), (int)Math.round(y0 + 1000*a));
+			CvPoint p2 = new CvPoint((int)Math.round(x0 - 1000*(-b)), (int)Math.round(y0 - 1000*a));
+			cvLine(image_test, p1, p2, CvScalar.BLACK, 3, 8, 0);
+
+			angle += theta;
+			num_lines++;
+		}
+		angle /= num_lines;
+
+		storage.release();
+		
+		cvSaveImage("test_line.png", image_test);
+		cvReleaseImage(image_src);
+		cvReleaseImage(image_test);
+		
+		return angle;
+	}
 
 	public static File layoutAnalysis(File file) {
 		IplImage image_source = cvLoadImage(file.getPath());
+		ArrayList<LineElement> group = new ArrayList<LineElement>();
 
+		if (getLineGroup(image_source, group, false, false)) {
+/*
+			IplImage tmp = cvCloneImage(image_source);
+			double angle = calcSkew(group, tmp);
+			cvSaveImage("test_line.png", tmp);
+			cvReleaseImage(tmp);
+*/
+			double angle = calcSkew(group, null);
+			deskew(image_source, angle, new CvRect(0, 0, image_source.width(), image_source.height()));
+			
+			group.clear();
+			getLineGroup(image_source, group, true, true);
+//			cvSaveImage("test_after.png", image_source);
+		}
+		
+		cvSaveImage(file.getPath(), image_source);
+
+		cvReleaseImage(image_source);
+		return file;
+	}
+
+
+
+	private static boolean getLineGroup(IplImage image_source,
+			ArrayList<LineElement> group, boolean doAdjust, boolean drawResult) {
 		double scale = 1;
 		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
+//		cvSaveImage("test_src.png", image_source);
 		
 		binalize(image_source, image_binary, true);
-		
+//		cvSaveImage("test_binary.png", image_binary);
 		// Extract counters
 		CvMemStorage storage = CvMemStorage.create();
 		CvSeq contours = new CvContour();
-		int count = cvFindContours(image_binary, storage, contours, Loader.sizeof(CvContour.class), CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+		int count = cvFindContours(image_binary, storage, contours, Loader.sizeof(CvContour.class), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+		if (count > 10000) return false; // maybe image.
+//		drawContours(image_source, contours, storage, CvScalar.RED);
+		
 		ArrayList<Rectangle> rects = new ArrayList<Rectangle>();
 		getRects(contours, rects);
-		
+
 		// Union intersected rects
 		mergeRects(rects);
 		
@@ -607,22 +755,22 @@ public class ImageUtil {
 
 		// Draw rects
 		Collections.sort(rects, new RectComparator());
-//		drawRects(image_source, rects, 2, CvScalar.CYAN, CvScalar.GREEN);
-
+		if (drawResult) {
+//			drawRects(image_source, rects, 2, CvScalar.CYAN, CvScalar.GREEN);
+		}
+		
 		// Grouping
-		ArrayList<LineElement> group = new ArrayList<LineElement>();
-		getGroup(rects, group);
-		drawGroup(image_source, group, 2, CvScalar.MAGENTA, CvScalar.CYAN);
+		getLineElements(rects, group, image_source, doAdjust);
+		if (drawResult) {
+			drawGroup(image_source, group, 2, CvScalar.MAGENTA, CvScalar.CYAN);
+		}
 		
 		storage.release();
-		
-		cvSaveImage(file.getPath(), image_source);
-		cvSaveImage("test.png", image_source);
-		
 		cvReleaseImage(image_binary);
-		cvReleaseImage(image_source);
-		return file;
+		return true;
 	}
+
+
 
 
 	private static void removeSmallRects(ArrayList<Rectangle> rects) {
@@ -636,6 +784,13 @@ public class ImageUtil {
 
 
 	private static class LineElement {
+		public static final int TYPE_UNKNOWN = 0;
+		public static final int TYPE_IMAGE = 1;
+		public static final int TYPE_TEXT_VERTICAL = 2;
+		public static final int TYPE_TEXT_HORIZONTAL = 3;
+		public static final int TYPE_RUBY = 4;
+
+		int type = TYPE_UNKNOWN;
 		String label = "";
 		Rectangle rect;
 		ArrayList<Rectangle> elements = new ArrayList<Rectangle>();
@@ -643,6 +798,33 @@ public class ImageUtil {
 			this.label = label;
 		}
 		
+		public double calcAngle(IplImage image) {
+			CvMemStorage storage = cvCreateMemStorage(0);
+			CvSeq points = cvCreateSeq(CV_SEQ_ELTYPE_POINT, Loader.sizeof(CvSeq.class), Loader.sizeof(CvPoint.class), storage);
+			for (Rectangle r : elements) {
+            	cvSeqPush(points, new CvPoint((int)r.getCenterX(), (int)r.getCenterY()));
+			}
+			
+			float[] line = new float[4];
+			cvFitLine(points, CV_DIST_L2, 0, 0.01f, 0.01f, line);
+			double angle = -Math.atan2(line[0], line[1]);
+//			double degree = Math.toDegrees(angle);
+			if (image != null) {
+				double a = Math.cos(angle);
+				double b = Math.sin(angle);
+				double x0 = line[2];
+				double y0 = line[3];
+				double length = rect.height;
+				CvPoint p1 = new CvPoint((int)Math.round(x0 + length*(-b)), (int)Math.round(y0 + length*a));
+				CvPoint p2 = new CvPoint((int)Math.round(x0 - length*(-b)), (int)Math.round(y0 - length*a));
+				cvLine(image, p1, p2, CvScalar.BLACK, 3, CV_AA, 0);
+			}
+
+			cvClearSeq(points);
+			cvReleaseMemStorage(storage);
+			return angle;
+		}
+
 		@Override
 		public String toString() {
 			return this.label;
@@ -844,9 +1026,17 @@ public class ImageUtil {
 			}
 			return sum / list.size();
 		}
+
+		public void setType(int type) {
+			this.type = type;
+		}
+		
+		public int getType() {
+			return type;
+		}
 	}
 	
-	private static void getGroup(ArrayList<Rectangle> rects, ArrayList<LineElement> group) {
+	private static void getLineElements(ArrayList<Rectangle> rects, ArrayList<LineElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
 		for (Rectangle r : rects) {
@@ -854,22 +1044,77 @@ public class ImageUtil {
 			le.add(new Rectangle(r));
 			group.add(le);
 		}
+
+		// Check images
+		checkImageElement(group, image);
 		
 		// Group y axis
 		groupYAxis(group, 1.5f, true);
 		
-		// Group x axis
-		groupXAxis(group);
 		
 		// Vertical line merge
-		groupYAxis(group, 1.5f, false);
-		groupYAxis(group, 2.0f, false);
+		if (!doAdjust) {
+			groupYAxis(group, 1.5f, false);
+			
+			// Group x axis
+			groupXAxis(group);
+			
+			groupYAxis(group, 2.0f, false);
 		
-		// separate ruby
-		groupSeparateRuby(group);
+			// separate ruby
+			groupSeparateRuby(group);
+		} else {
+			groupYAxis(group, 1.5f, false);
+			
+			// Group x axis
+			groupXAxis(group);
+			
+			groupYAxis(group, 2.0f, false);
+		}
 		
 		// Adjust element width
-		//adjustElementWidth(group);
+		if (doAdjust) {
+//			adjustElementWidth(group);
+		}
+	}
+
+	private static void checkImageElement(ArrayList<LineElement> group,
+			IplImage image) {
+		CvSize size = image.cvSize();
+		for (LineElement le : group) {
+			if (le.rect.width < size.width() * 0.1f) continue;
+			if (le.rect.height < size.height() * 0.1f) continue;
+			
+			double leArea = le.rect.width * le.rect.height;
+			double area = image.width() * image.height();
+			int w = image.width();
+			int h = image.height();
+			if (Math.sqrt(leArea/area) > 0.10f) {
+				le.setType(LineElement.TYPE_IMAGE);
+			} else {
+				CvRect leRect = new CvRect(le.rect.x, le.rect.y, le.rect.width, le.rect.height);
+				CvSize leSize = new CvSize(le.rect.width, le.rect.height);
+				// Color detection
+				IplImage image_hsv = cvCreateImage( leSize, IPL_DEPTH_8U, 3);
+				cvSetImageROI(image, leRect);
+				cvCvtColor(image, image_hsv, CV_RGB2HSV);
+				CvScalar mean = cvScalarAll(0);
+				CvScalar std_dev= cvScalarAll(0);
+	
+				cvAvgSdv(image_hsv, mean, std_dev, null);
+				double colorH = std_dev.val(0);
+				double colorS = std_dev.val(1);
+				double colorV = std_dev.val(2);
+
+				if (colorV > 40.0f) {
+					// iilust
+					colorS = colorV;
+				}
+				// TODO:
+			}
+		}
+		cvResetImageROI(image);
+		
 	}
 
 	private static void groupSeparateRuby(ArrayList<LineElement> group) {
@@ -906,8 +1151,10 @@ public class ImageUtil {
 	private static void groupXAxis(ArrayList<LineElement> group) {
 		for (int i=group.size()-1; i>=0; i--) {
 			LineElement l1 = group.get(i);
+			if (l1.getType() == LineElement.TYPE_IMAGE) continue;
 			for (int j=0; j<i; j++) {
 				LineElement l2 = group.get(j);
+				if (l2.getType() == LineElement.TYPE_IMAGE) continue;
 				if (overwrapX(l1.rect, l2.rect)) {
 					l2.add(l1);
 					group.remove(i);
@@ -920,10 +1167,11 @@ public class ImageUtil {
 	private static void groupYAxis(ArrayList<LineElement> group, double margin, boolean isChar) {
 		for (int i=group.size()-1; i>=0; i--) {
 			LineElement l1 = group.get(i);
-			int k=0;
+			if (l1.getType() == LineElement.TYPE_IMAGE) continue;
 //			if (l1.toString().equals("33")) break;
 			for (int j=i-1; j>=0; j--) {
 				LineElement l2 = group.get(j);
+				if (l2.getType() == LineElement.TYPE_IMAGE) continue;
 				if (overwrapY(l1.rect, l2.rect, margin, isChar)) {
 					l2.add(l1);
 					group.remove(i);
@@ -1009,6 +1257,10 @@ public class ImageUtil {
 				if (distance > limit * 1.3f) return false;
 			}
 		} else {
+			// ruby check
+			if (r1.width < r2.width && r2.getMaxX() < r1.getCenterX()) return false;
+			if (r1.width > r2.width && r1.getMaxX() < r2.getCenterX()) return false;
+			
 			if (r1.height > r1.width*3 && r2.height > r2.width*3) { // both rects are vertical line.
 				int limit1 = Math.min(r1.height, r1.width);
 				int limit2 = Math.min(r2.height, r2.width);
@@ -1148,12 +1400,15 @@ public class ImageUtil {
                         storage, CV_POLY_APPROX_DP, cvContourPerimeter(contours)*0.02, 0);
                 cvDrawContours(image_out, points, color, color, -1, 1, CV_AA);
 */                
+            	
+/*            	
             	CvRect cr = cvBoundingRect(contours, 1);
             	cvRectangle(image_out, cvPoint(cr.x(), cr.y()), 
             			    cvPoint(cr.x() + cr.width(), cr.y() + cr.height()),
             			    CvScalar.GREEN, 1, 0, 0);
             	String text = Integer.toString(i++);
             	cvPutText(image_out, text, cvPoint(cr.x(), cr.y()), font, CvScalar.CYAN);
+*/
             }
             contours = contours.h_next();
         }		

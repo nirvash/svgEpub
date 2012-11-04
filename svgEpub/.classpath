@@ -37,5 +37,7 @@
 	<classpathentry kind="lib" path="lib/javacv-windows-x86_64.jar"/>
 	<classpathentry kind="lib" path="lib/jai_imageio.jar"/>
 	<classpathentry kind="lib" path="lib/tess4j.jar"/>
+	<classpathentry kind="lib" path="lib/colt.jar"/>
+	<classpathentry kind="lib" path="lib/concurrent.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
