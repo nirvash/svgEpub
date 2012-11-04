@@ -155,7 +155,7 @@ public class Epub {
 		Rectangle imageSize = new Rectangle();
 		try {
 			if (properties.getProperty("enable_opencv", "no").equals("yes")) {
-				pnmFile = ImageUtil.convertToBitmap(item, imageSize);
+				pnmFile = ImageUtility.convertToBitmap(item, imageSize);
 			} else {
 				bitmapFile = convertToBitmap(item, imageSize);
 				if (bitmapFile == null || !bitmapFile.exists()) return null;
@@ -298,9 +298,9 @@ public class Epub {
 				String pageName = String.format("page_%04d", page);
 				String pageFile = pageName + ".xhtml";
 
-				Rectangle imageRect = ImageUtil.getImageSize(item);
+				Rectangle imageRect = ImageUtility.getImageSize(item);
 		    	Rectangle clipRect = clipItem.getClipRect();
-				Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
+				Document doc = ImageUtility.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
 				doc.normalizeDocument();
 	
 				String svgTag = serializeDocument(doc);
@@ -335,9 +335,9 @@ public class Epub {
 				String pageName = String.format("page_%04d", page);
 				String pageFile = pageName + ".xhtml";
 	        
-		    	Rectangle imageRect = ImageUtil.getSvgSize(item);
+		    	Rectangle imageRect = ImageUtility.getSvgSize(item);
 		    	Rectangle clipRect = clipItem.getClipRect();
-				Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
+				Document doc = ImageUtility.createSvgDocument(clipRect, imageRect, imageURI, true, 0);
 				doc.normalizeDocument();
 	
 				String svgTag = serializeDocument(doc);

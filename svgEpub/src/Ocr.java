@@ -24,7 +24,7 @@ import net.sourceforge.vietocr.ImageIOHelper;
 
 public class Ocr {
 	public static void test(IFile item) {
-		File file = ImageUtil.convertToBitmap(item, null);
+		File file = ImageUtility.convertToBitmap(item, null);
 		
 		Tesseract tess = Tesseract.getInstance();
 		try {

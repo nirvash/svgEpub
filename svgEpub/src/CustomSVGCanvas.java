@@ -299,7 +299,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	}
 
 	public void setImage(IFile item) {
-		Rectangle imageRect = ImageUtil.getImageSize(item);
+		Rectangle imageRect = ImageUtility.getImageSize(item);
 		Rectangle clipRect = mListItem.getClipRect();
 		if (clipRect == null) {
 			clipRect = imageRect;
@@ -310,7 +310,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	}
 	
 	public void setSvg(IFile item) {
-		Rectangle svgRect = ImageUtil.getSvgSize(item);
+		Rectangle svgRect = ImageUtility.getSvgSize(item);
 		Rectangle clipRect = mListItem.getClipRect();
 		if (clipRect == null) {
 			clipRect = svgRect;
@@ -324,7 +324,7 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		this.clipRect.setBounds(clipRect);
 		scale = (float)imageRect.width / 1600;
 		int margin = (int)(100 * scale);
-		Document doc = ImageUtil.createSvgDocument(clipRect, imageRect, imageURI, mPreview, margin);
+		Document doc = ImageUtility.createSvgDocument(clipRect, imageRect, imageURI, mPreview, margin);
 		
 		Element svgRootOuter = doc.getElementById("root");
 

@@ -239,7 +239,7 @@ public class ListItem implements IFile {
 				tmpFile.deleteOnExit();
 				InputStream in = getInputStream();
 				try {
-					ImageUtil.copyFile(in, tmpFile);
+					ImageUtility.copyFile(in, tmpFile);
 					in.close();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -247,7 +247,7 @@ public class ListItem implements IFile {
 				}
 			}
 			if (isDebug) {
-				tmpFile = ImageUtil.layoutAnalysis(tmpFile);
+				tmpFile = LayoutAnalyzer.layoutAnalysis(tmpFile);
 			}
 			return tmpFile.toURI().toString();
 		} else {
@@ -264,14 +264,14 @@ public class ListItem implements IFile {
 					tmpFile.deleteOnExit();
 					InputStream in = getInputStream();
 					try {
-						ImageUtil.copyFile(in, tmpFile);
+						ImageUtility.copyFile(in, tmpFile);
 						in.close();
 					} catch (IOException e) {
 						e.printStackTrace();
 						return null;
 					}
 				}
-				tmpFile = ImageUtil.layoutAnalysis(tmpFile);
+				tmpFile = LayoutAnalyzer.layoutAnalysis(tmpFile);
 	
 				return tmpFile.toURI().toString();
 			} else {
@@ -284,6 +284,6 @@ public class ListItem implements IFile {
 		if (!canConvertToSVG) return;
 		if (PathUtil.isSvgFile(getFilename())) return;
 
-		this.isConvertToSVG = ImageUtil.isTextImage(this);
+		this.isConvertToSVG = ImageUtility.isTextImage(this);
 	}
 }

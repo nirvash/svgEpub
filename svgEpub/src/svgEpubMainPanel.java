@@ -104,7 +104,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		add(getJPanelMain());
 		setSize(800, 600);
 		
-		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
+		ImageUtility.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
 		Runtime.getRuntime().addShutdownHook(new Shutdown());
 		
 		String workingDir = System.getProperty("user.dir");
@@ -532,7 +532,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			int index = jListFile.getSelectedIndex();
 			if (index == -1) return;
 			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
-			item.setClipRect(ImageUtil.getContentArea(item));
+			item.setClipRect(ImageUtility.getContentArea(item));
 			itemSelectionListener.updateItem(index);
 		} else if (e.getActionCommand().equals("ClipTemplate")) {
 			getClipTemplateDialog().setMainPanel(this);
@@ -672,7 +672,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		if (itemSelectionListener != null) {
 			itemSelectionListener.updateItem(getJListFile().getSelectedIndex());
 		}
-		ImageUtil.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
+		ImageUtility.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
 		jButtonAutoClip.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
 	}
 	

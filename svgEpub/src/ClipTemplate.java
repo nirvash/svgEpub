@@ -16,7 +16,7 @@ public class ClipTemplate {
 	public ArrayList<ClipListItem> getClipRect(ListItem item) {
 		ArrayList<ClipListItem> list = new ArrayList<ClipListItem>();
 		
-		Rectangle imageRect = ImageUtil.getImageSize(item);
+		Rectangle imageRect = ImageUtility.getImageSize(item);
 		if (id == Type.B5_Cover) {
 			Rectangle clipRect = new Rectangle(imageRect);
 			clipRect.x = imageRect.width / 2 / 3;
