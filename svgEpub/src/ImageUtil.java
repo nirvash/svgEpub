@@ -624,10 +624,10 @@ public class ImageUtil {
 		cvWarpAffine(image, image, rotMat, CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS, cvScalarAll(255));
 	}
 	
-	private static double calcSkew(ArrayList<LineElement> group, IplImage image) {
+	private static double calcSkew(ArrayList<LayoutElement> group, IplImage image) {
 		double angle = 0;
 		DoubleArrayList angles = new DoubleArrayList();
-		for (LineElement le : group) {
+		for (LayoutElement le : group) {
 			if (le.rect.height < le.rect.width*3) continue;
 			if (le.elements.size() < 20) continue;
 			double theta = le.calcAngle(image);
@@ -703,7 +703,7 @@ public class ImageUtil {
 
 	public static File layoutAnalysis(File file) {
 		IplImage image_source = cvLoadImage(file.getPath());
-		ArrayList<LineElement> group = new ArrayList<LineElement>();
+		ArrayList<LayoutElement> group = new ArrayList<LayoutElement>();
 
 		if (getLineGroup(image_source, group, false, false)) {
 /*
@@ -715,8 +715,11 @@ public class ImageUtil {
 			double angle = calcSkew(group, null);
 			deskew(image_source, angle, new CvRect(0, 0, image_source.width(), image_source.height()));
 			
-			group.clear();
 			getLineGroup(image_source, group, true, true);
+			labeling(image_source, group);
+			
+			drawGroup(image_source, group, 2, CvScalar.MAGENTA, CvScalar.CYAN);
+			
 //			cvSaveImage("test_after.png", image_source);
 		}
 		
@@ -728,8 +731,172 @@ public class ImageUtil {
 
 
 
+	private static void labeling(IplImage image_source,
+			ArrayList<LayoutElement> elements) {
+		// Check horizontal element
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
+			if (le.rect.width > le.rect.height*3) {
+				le.setType(LayoutElement.TYPE_TEXT_HORIZONTAL);
+			}
+		}
+		
+		// Check vertical element
+		DoubleArrayList widths = new DoubleArrayList();
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
+			if (le.rect.height > le.rect.width*3) {
+				le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+				widths.add(le.rect.width);
+			}
+		}
+		
+		double threshold = calcThreshold(widths);
+		// Check ruby element
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (le.rect.width < threshold) {
+				le.setType(LayoutElement.TYPE_RUBY);
+			}
+		}
+
+		// Detect column
+		Rectangle textColumn = null;
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (textColumn == null) {
+				textColumn = new Rectangle(le.rect);
+			} else {
+				textColumn.add(le.rect);
+			}
+		}
+		
+		// Check elements in column
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
+			if (textColumn.intersects(le.rect)) {
+				if (le.rect.width > threshold && textColumn.intersects(le.rect)) {
+					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+				} else {
+					le.setType(LayoutElement.TYPE_RUBY);
+				}
+			}
+		}		
+		
+		// Check ruby element (elements which is next to vertical element)
+		for (LayoutElement le : elements) {
+			if (le.getType() == LayoutElement.TYPE_UNKNOWN) {
+				for (LayoutElement vert : elements) {
+					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+					Rectangle body = new Rectangle(vert.rect);
+					body.width *= 1.2f;
+					if (body.intersects(le.rect)) {
+						le.setType(LayoutElement.TYPE_RUBY);
+						break;
+					}
+				}
+			} else if (le.getType() == LayoutElement.TYPE_RUBY) {
+				boolean found = false;
+				for (LayoutElement vert : elements) {
+					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+					Rectangle body = new Rectangle(vert.rect);
+					body.width *= 1.2f;
+					if (body.intersects(le.rect)) {
+						le.setType(LayoutElement.TYPE_RUBY);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+				}
+			}
+		}
+		
+		// Align vertical elements
+		// Check elements in column
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (textColumn.intersects(le.rect)) {
+				int diff = le.rect.y - textColumn.y;
+				if (diff < le.rect.width*3) {
+					le.rect.y = textColumn.y;
+					le.rect.height += diff;
+				}
+			}
+		}
+	}
+
+	private static double calcThreshold(DoubleArrayList widths) {
+		double threshold = 0;
+		double avg = Descriptive.mean(widths);
+		double max = -1.0f;
+		widths.sort();
+
+		final int limit = (int)avg * 2;
+		int[] hist = new int[limit+1];
+
+		for (double w : widths.elements()) {
+			int j = (int)w;
+			if (j > limit) {
+				j = limit;
+			}
+			hist[j]++;
+		}
+
+		for (int i = 0; i < limit; i++) {
+			double n1 = 0;
+			double wn1 = 0;
+			double avg1 = 0;
+			for (int j=0; j<i; j++) {
+				n1 += hist[j];
+				wn1 += hist[j] * j;
+			}
+			if (n1 != 0) {
+				avg1 = wn1 / n1;
+			}
+			
+			double var1 = 0;
+			for (int j=0; j<i; j++) {
+				var1 += (j-avg1) * (j-avg1) * hist[j];
+			}
+			if (n1 != 0) {
+				var1 /= n1;
+			}
+			
+			double n2 = 0;
+			double wn2 = 0;
+			double avg2 = 0;
+			for (int j=i; j<limit; j++) {
+				n2 += hist[j];
+				wn2 += hist[j] * j;
+			}
+			if (n2 != 0) {
+				avg2 = wn2 / n2;
+			}
+			
+			double var2 = 0;
+			for (int j=i; j<limit; j++) {
+				var2 += (j-avg2) * (j-avg2) * hist[j];
+			}
+			if (n2 != 0) {
+				var2 /= n2;
+			}
+
+			double w = (n1 * var1 + n2 * var2);
+			double b = n1 * (avg1-avg)*(avg1-avg) + n2 * (avg2-avg)*(avg2-avg);
+			double r = b/w;
+			if (r > max) {
+				max = r;
+				threshold = i;
+			}
+		}
+		
+		return threshold;
+	}
+
 	private static boolean getLineGroup(IplImage image_source,
-			ArrayList<LineElement> group, boolean doAdjust, boolean drawResult) {
+			ArrayList<LayoutElement> group, boolean doAdjust, boolean drawResult) {
 		double scale = 1;
 		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
@@ -761,9 +928,6 @@ public class ImageUtil {
 		
 		// Grouping
 		getLineElements(rects, group, image_source, doAdjust);
-		if (drawResult) {
-			drawGroup(image_source, group, 2, CvScalar.MAGENTA, CvScalar.CYAN);
-		}
 		
 		storage.release();
 		cvReleaseImage(image_binary);
@@ -783,7 +947,7 @@ public class ImageUtil {
 	}
 
 
-	private static class LineElement {
+	private static class LayoutElement {
 		public static final int TYPE_UNKNOWN = 0;
 		public static final int TYPE_IMAGE = 1;
 		public static final int TYPE_TEXT_VERTICAL = 2;
@@ -791,13 +955,19 @@ public class ImageUtil {
 		public static final int TYPE_RUBY = 4;
 
 		int type = TYPE_UNKNOWN;
-		String label = "";
+		int id = 0;
 		Rectangle rect;
 		ArrayList<Rectangle> elements = new ArrayList<Rectangle>();
-		public LineElement(String label) {
-			this.label = label;
+
+		public LayoutElement(int id) {
+			this.id = id;;
 		}
 		
+		public LayoutElement(int id, int type) {
+			this.id = id;;
+			this.type = type;
+		}
+
 		public double calcAngle(IplImage image) {
 			CvMemStorage storage = cvCreateMemStorage(0);
 			CvSeq points = cvCreateSeq(CV_SEQ_ELTYPE_POINT, Loader.sizeof(CvSeq.class), Loader.sizeof(CvPoint.class), storage);
@@ -827,10 +997,17 @@ public class ImageUtil {
 
 		@Override
 		public String toString() {
-			return this.label;
+			final String[] types = new String[] {
+				"U", "I", "V", "H", "R"	
+			};
+			return types[type] + Integer.toString(this.id);
 		}
 		
-		public void add(LineElement l1) {
+		public int getId() {
+			return id;
+		}
+		
+		public void add(LayoutElement l1) {
 			if (rect == null) {
 				rect = l1.rect;
 			} else {
@@ -859,7 +1036,7 @@ public class ImageUtil {
 			mergeRects(elements);
 		}
 
-		public LineElement extractRuby() {
+		public LayoutElement extractRuby() {
 			if (elements.size() < 5) return null;
 			if (rect.height < rect.width*3) return null;
 			
@@ -890,7 +1067,8 @@ public class ImageUtil {
 				}
 			}
 			list.remove(bodyIndex);
-			LineElement ruby = new LineElement("ruby");
+			LayoutElement ruby = new LayoutElement(0);
+			ruby.setType(LayoutElement.TYPE_RUBY);
 			
 			for (Rectangle rubyRect : list) {
 				for (int i=elements.size()-1; i>=0; i--) {
@@ -970,9 +1148,9 @@ public class ImageUtil {
 			}
 		}
 			
-		public LineElement extractRuby2() {
+		public LayoutElement extractRuby2() {
 			if (elements.size() < 5) return null;
-			LineElement ruby = new LineElement("ruby");
+			LayoutElement ruby = new LayoutElement(0, LayoutElement.TYPE_RUBY);
 			double avg = getAverate(elements);
 			double std = getStandartDeviation(elements, avg);
 			for (int i=elements.size()-1; i>=0; i--) {
@@ -1034,13 +1212,20 @@ public class ImageUtil {
 		public int getType() {
 			return type;
 		}
+		
+		public CvScalar getColor() {
+			final CvScalar[] colorTable = new CvScalar[] {
+				CvScalar.RED, CvScalar.BLUE, CvScalar.MAGENTA, CvScalar.CYAN, CvScalar.GREEN
+			};
+			return colorTable[type];
+		}
 	}
 	
-	private static void getLineElements(ArrayList<Rectangle> rects, ArrayList<LineElement> group, IplImage image, boolean doAdjust) {
+	private static void getLineElements(ArrayList<Rectangle> rects, ArrayList<LayoutElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
 		for (Rectangle r : rects) {
-			LineElement le = new LineElement(String.format("%d", i++));
+			LayoutElement le = new LayoutElement(i++);
 			le.add(new Rectangle(r));
 			group.add(le);
 		}
@@ -1074,14 +1259,14 @@ public class ImageUtil {
 		
 		// Adjust element width
 		if (doAdjust) {
-//			adjustElementWidth(group);
+			adjustElementWidth(group);
 		}
 	}
 
-	private static void checkImageElement(ArrayList<LineElement> group,
+	private static void checkImageElement(ArrayList<LayoutElement> group,
 			IplImage image) {
 		CvSize size = image.cvSize();
-		for (LineElement le : group) {
+		for (LayoutElement le : group) {
 			if (le.rect.width < size.width() * 0.1f) continue;
 			if (le.rect.height < size.height() * 0.1f) continue;
 			
@@ -1090,7 +1275,7 @@ public class ImageUtil {
 			int w = image.width();
 			int h = image.height();
 			if (Math.sqrt(leArea/area) > 0.10f) {
-				le.setType(LineElement.TYPE_IMAGE);
+				le.setType(LayoutElement.TYPE_IMAGE);
 			} else {
 				CvRect leRect = new CvRect(le.rect.x, le.rect.y, le.rect.width, le.rect.height);
 				CvSize leSize = new CvSize(le.rect.width, le.rect.height);
@@ -1117,10 +1302,10 @@ public class ImageUtil {
 		
 	}
 
-	private static void groupSeparateRuby(ArrayList<LineElement> group) {
-		ArrayList<LineElement> rubyList = new ArrayList<LineElement>();
-		for (LineElement le : group) {
-			LineElement ruby = le.extractRuby();
+	private static void groupSeparateRuby(ArrayList<LayoutElement> group) {
+		ArrayList<LayoutElement> rubyList = new ArrayList<LayoutElement>();
+		for (LayoutElement le : group) {
+			LayoutElement ruby = le.extractRuby();
 			if (ruby != null) {
 				rubyList.add(ruby);
 			}
@@ -1129,7 +1314,7 @@ public class ImageUtil {
 		group.addAll(rubyList);
 	}
 
-	private static double calcMedLineWidth(ArrayList<LineElement> group) {
+	private static double calcMedLineWidth(ArrayList<LayoutElement> group) {
 		ArrayList<Double> widths = new ArrayList<Double>();
 		for (int i=0; i<group.size(); i++) {
 			Rectangle r = group.get(i).rect;
@@ -1142,19 +1327,19 @@ public class ImageUtil {
 		return medLineWidth;
 	}
 
-	private static void adjustElementWidth(ArrayList<LineElement> group) {
-		for (LineElement le : group) {
+	private static void adjustElementWidth(ArrayList<LayoutElement> group) {
+		for (LayoutElement le : group) {
 			le.adjustElementWidth();
 		}
 	}
 
-	private static void groupXAxis(ArrayList<LineElement> group) {
+	private static void groupXAxis(ArrayList<LayoutElement> group) {
 		for (int i=group.size()-1; i>=0; i--) {
-			LineElement l1 = group.get(i);
-			if (l1.getType() == LineElement.TYPE_IMAGE) continue;
+			LayoutElement l1 = group.get(i);
+			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
 			for (int j=0; j<i; j++) {
-				LineElement l2 = group.get(j);
-				if (l2.getType() == LineElement.TYPE_IMAGE) continue;
+				LayoutElement l2 = group.get(j);
+				if (l2.getType() == LayoutElement.TYPE_IMAGE) continue;
 				if (overwrapX(l1.rect, l2.rect)) {
 					l2.add(l1);
 					group.remove(i);
@@ -1164,14 +1349,14 @@ public class ImageUtil {
 		}
 	}
 
-	private static void groupYAxis(ArrayList<LineElement> group, double margin, boolean isChar) {
+	private static void groupYAxis(ArrayList<LayoutElement> group, double margin, boolean isChar) {
 		for (int i=group.size()-1; i>=0; i--) {
-			LineElement l1 = group.get(i);
-			if (l1.getType() == LineElement.TYPE_IMAGE) continue;
+			LayoutElement l1 = group.get(i);
+			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
 //			if (l1.toString().equals("33")) break;
 			for (int j=i-1; j>=0; j--) {
-				LineElement l2 = group.get(j);
-				if (l2.getType() == LineElement.TYPE_IMAGE) continue;
+				LayoutElement l2 = group.get(j);
+				if (l2.getType() == LayoutElement.TYPE_IMAGE) continue;
 				if (overwrapY(l1.rect, l2.rect, margin, isChar)) {
 					l2.add(l1);
 					group.remove(i);
@@ -1346,18 +1531,20 @@ public class ImageUtil {
 	
 
 	private static void drawGroup(IplImage image,
-			ArrayList<LineElement> group, int lineWidth, CvScalar rectColor,  CvScalar elemColor) {
-		CvFont font = new CvFont(CV_FONT_BLACK, 0.3, 1);
+			ArrayList<LayoutElement> group, int lineWidth, CvScalar rectColor,  CvScalar elemColor) {
+		CvFont font = new CvFont(CV_FONT_NORMAL, 0.3, 1);
 		IplImage tmpImage = cvCreateImage(image.cvSize(), IPL_DEPTH_8U, 3);
     	cvNot(image, image);
-		for (LineElement le : group) {
+		for (LayoutElement le : group) {
 			Rectangle r = le.rect;
 			cvSet(tmpImage, new CvScalar(255,255,255,0));
+        	rectColor = le.getColor();
+
         	cvRectangle(tmpImage, cvPoint(r.x, r.y), 
     			    cvPoint(r.x + r.width, r.y + r.height),
     			    rectColor, lineWidth, 0, 0);
         	String text = le.toString();
-        	cvPutText(tmpImage, text, cvPoint(r.x + r.width, r.y - 10), font, rectColor);
+        	cvPutText(tmpImage, text, cvPoint(r.x, r.y - 4), font, rectColor);
         	
         	cvNot(tmpImage, tmpImage);
         	cvAddWeighted(image, 1.0f, tmpImage, 1.0f, 0.0, image);
@@ -1368,7 +1555,7 @@ public class ImageUtil {
     	cvNot(image, image);
     	cvReleaseImage(tmpImage);
     	
-		for (LineElement le : group) {
+		for (LayoutElement le : group) {
         	if (elemColor != null) {
         		drawRects(image, le.elements, 1, elemColor, null);
         	}
