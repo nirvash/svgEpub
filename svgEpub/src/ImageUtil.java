@@ -1,11 +1,8 @@
 import java.awt.Color;
 import java.awt.Point;
 import java.awt.Rectangle;
-import java.awt.image.BufferedImage;
-import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,6 +12,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,7 +21,6 @@ import java.util.regex.Pattern;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
-import javax.naming.InitialContext;
 import javax.swing.JOptionPane;
 
 import org.apache.batik.css.parser.ParseException;
@@ -37,25 +35,17 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.events.EventTarget;
-
 import cern.colt.list.DoubleArrayList;
 import cern.jet.stat.Descriptive;
 
-import com.googlecode.javacpp.BytePointer;
 import com.googlecode.javacpp.FloatPointer;
 import com.googlecode.javacpp.Loader;
-import com.googlecode.javacpp.Pointer;
-import com.googlecode.javacpp.PointerPointer;
 import com.googlecode.javacv.cpp.opencv_core.CvMat;
 import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
-import com.googlecode.javacv.cpp.opencv_core.CvPoint3D32f;
 import com.googlecode.javacv.cpp.opencv_core.CvRect;
 import com.googlecode.javacv.cpp.opencv_core.CvScalar;
 import com.googlecode.javacv.cpp.opencv_core.CvSeq;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
-import com.googlecode.javacv.cpp.opencv_ml.CvVectors;
-import com.googlecode.javacv.cpp.opencv_legacy;
 import com.googlecode.javacv.cpp.opencv_objdetect;
 
 import static com.googlecode.javacv.cpp.opencv_core.*;
@@ -758,14 +748,126 @@ public class ImageUtil {
 		
 		// Align vertical elements
 		alignVerticalTextInColumn(elements, columnList);
+			
+		// checkCharacter
+		checkCharacter(elements);
+	}
+
+	private static void checkCharacter(ArrayList<LayoutElement> elements) {
+		DoubleArrayList hlist = new DoubleArrayList();
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			for (Rectangle r : le.elements) {
+				hlist.add(r.height);
+				r.x = le.rect.x;
+				r.width = le.rect.width;
+			}
+		}
+		if (hlist.size()==0) return;
 		
+		double[] avglist = new double[2];
+		double threshold = calcThreshold(hlist, 1, avglist);
+		double avgHeight = Math.max(avglist[0], avglist[1]);
+
+		int charHeight = 0;
+		int limit = Math.max(2,(int)(hlist.size() * 0.1f));
+		if (limit < hlist.size()) {
+			hlist.sort();
+			charHeight = (int)hlist.get(hlist.size()-limit);
+		} else {
+			charHeight = (int)hlist.get(hlist.size()-1);
+		}
+
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			if (le.elements.size()==0) continue;
+			Collections.sort(le.elements, new RectComparator());
+			LinkedList<Rectangle> elems = new LinkedList<Rectangle>(le.elements);
+			Iterator<Rectangle> itr = elems.iterator();
+			Rectangle r0 = null;
+			Rectangle r1 = itr.next();
+			Rectangle r2 = null;
+			if (r1.y < le.rect.y + avgHeight) {
+				r1.add(le.rect.getLocation());
+			} else {
+				// insert space character
+				int height = Math.min(charHeight, r1.y - le.rect.y);
+				elems.addFirst(new Rectangle(le.rect.x, le.rect.y, le.rect.width, height));
+				itr = elems.iterator();
+				r1 = itr.next();
+			}
+			
+			while (itr.hasNext()) {
+				r2 = itr.next();
+
+				boolean lastChar = false;
+				boolean merged = false;
+				do {
+					merged = false;
+					if (r1.height < charHeight) {
+						if (r2.y - r1.getMaxY() > charHeight/2) break; // Too far to merge
+						if (r2.getMaxY() - r1.y <= charHeight+1) {
+							merged = true;
+							r1.add(r2);
+							itr.remove();
+							if (!itr.hasNext()) {
+								lastChar = true;
+								break;
+							}
+							r2 = itr.next();
+						}
+					}
+				} while (merged);
+				if (lastChar) break;
+	
+				if (r1.height < charHeight) {
+					int marginTop = 0, marginBottom = 0;
+					if (r0 != null && r1.y - r0.getMaxY() > 0) {
+						marginTop = Math.max(0, (int)r0.getMaxY() - r1.y);
+					}
+					marginBottom = Math.max(0, r2.y - (int)r1.getMaxY());
+					int maxMarginBottom = marginBottom;
+					int diff = charHeight - r1.height;
+					marginTop -= diff/2;
+					marginBottom -= (diff - diff/2);
+					if (marginTop < 0) {
+						marginBottom += marginTop;
+						marginTop = 0;
+					}
+					if (marginBottom < 0) {
+						marginBottom = 0;
+					}
+					
+					marginBottom = Math.min(marginBottom, maxMarginBottom);
+
+					if (r0 != null) r1.add(new Point(r1.x, (int)r0.getMaxY() + marginTop));
+					r1.add(new Point(r1.x, r2.y - marginBottom));
+				}
+
+				r0 = r1;
+				r1 = r2;
+			}
+			
+			// Align the last character in the line.
+			if (r1 != null) {
+				if (r0 != null && r1.y - r0.getMaxY() > 0) {
+					r1.add(new Point(r1.x, (int)r0.getMaxY()));
+				}
+				if (r1.height < charHeight) {
+					r1.height += charHeight - r1.height;
+					le.rect.add(r1);
+				}
+			}
+
+			le.elements.clear();
+			le.elements.addAll(elems);
+		}		
 	}
 
 	private static void checkMultiColumns(ArrayList<LayoutElement> elements, 
 			ArrayList<Rectangle> columnList, double rubyThreshold) {
 		DoubleArrayList ylist = new DoubleArrayList();
 		columnList.clear();
-		
 		Rectangle singleColumn = null;
 
 		for (LayoutElement le : elements) {
@@ -778,7 +880,7 @@ public class ImageUtil {
 			}
 		}
 		
-		double threshold = calcThreshold(ylist);
+		double threshold = calcThreshold(ylist, 1, null);
 		if (threshold == 0) {
 			columnList.add(singleColumn);
 			return;
@@ -861,6 +963,7 @@ public class ImageUtil {
 	}
 
 	private static void checkTextInColumn(ArrayList<LayoutElement> elements, Rectangle textColumn) {
+		if (textColumn == null) return;
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_UNKNOWN) continue;
 			if (textColumn.intersects(le.rect)) {
@@ -890,7 +993,7 @@ public class ImageUtil {
 			widths.add(le.rect.width);
 		}
 		
-		double rubyThreshold = calcThreshold(widths);
+		double rubyThreshold = calcThreshold(widths, 1, null);
 		if (rubyThreshold == 0) return rubyThreshold;
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
@@ -920,7 +1023,7 @@ public class ImageUtil {
 		}
 	}
 
-	private static double calcThreshold(DoubleArrayList lengthList) {
+	private static double calcThreshold(DoubleArrayList lengthList, int k, double[] avglist) {
 		if (lengthList.size()<4) return 0; // Too few data to analyze
 		double threshold = 0;
 		double maxIndexBegin = 0;
@@ -941,66 +1044,88 @@ public class ImageUtil {
 			hist[j]++;
 		}
 
-		boolean isRepeat = false;
-		for (int i = 0; i < limit; i++) {
-			double n1 = 0;
-			double wn1 = 0;
-			double avg1 = 0;
-			for (int j=0; j<i; j++) {
-				n1 += hist[j];
-				wn1 += hist[j] * j;
+		for (int n=0; n<k; n++) {
+			if (n>0) {
+				Arrays.fill(hist, 0, (int) threshold, 0);
+				avg = 0;
+				int num = 0;
+				for (int j=0; j<limit; j++) {
+					avg += hist[j] * j;
+					num += hist[j];
+				}
+				if (num>0) {
+					avg /= num;
+				}
+				threshold = 0;
+				ravg = 0;
+				max = 0;
 			}
-			if (n1 != 0) {
-				avg1 = wn1 / n1;
+			boolean isRepeat = false;
+			for (int i = 0; i < limit; i++) {
+				double n1 = 0;
+				double wn1 = 0;
+				double avg1 = 0;
+				for (int j=0; j<i; j++) {
+					n1 += hist[j];
+					wn1 += hist[j] * j;
+				}
+				if (n1 != 0) {
+					avg1 = wn1 / n1;
+				}
+				
+				double var1 = 0;
+				for (int j=0; j<i; j++) {
+					var1 += (j-avg1) * (j-avg1) * hist[j];
+				}
+				if (n1 != 0) {
+					var1 /= n1;
+				}
+				
+				double n2 = 0;
+				double wn2 = 0;
+				double avg2 = 0;
+				for (int j=i; j<limit; j++) {
+					n2 += hist[j];
+					wn2 += hist[j] * j;
+				}
+				if (n2 != 0) {
+					avg2 = wn2 / n2;
+				}
+				
+				double var2 = 0;
+				for (int j=i; j<limit; j++) {
+					var2 += (j-avg2) * (j-avg2) * hist[j];
+				}
+				if (n2 != 0) {
+					var2 /= n2;
+				}
+	
+				double w = (n1 * var1 + n2 * var2);
+				double b = n1 * (avg1-avg)*(avg1-avg) + n2 * (avg2-avg)*(avg2-avg);
+				double r = b/w;
+				if (r > max) {
+					max = r;
+					isRepeat = true;
+					maxIndexBegin = i;
+					threshold = i;
+					ravg = avg1 / avg2;
+					if (avglist != null) {
+						avglist[0] = avg1;
+						avglist[1] = avg2;
+					}
+				} else if (r == max && isRepeat) {
+					threshold = (i + maxIndexBegin) / 2;
+				} else {
+					isRepeat = false;
+				}
 			}
 			
-			double var1 = 0;
-			for (int j=0; j<i; j++) {
-				var1 += (j-avg1) * (j-avg1) * hist[j];
-			}
-			if (n1 != 0) {
-				var1 /= n1;
-			}
-			
-			double n2 = 0;
-			double wn2 = 0;
-			double avg2 = 0;
-			for (int j=i; j<limit; j++) {
-				n2 += hist[j];
-				wn2 += hist[j] * j;
-			}
-			if (n2 != 0) {
-				avg2 = wn2 / n2;
-			}
-			
-			double var2 = 0;
-			for (int j=i; j<limit; j++) {
-				var2 += (j-avg2) * (j-avg2) * hist[j];
-			}
-			if (n2 != 0) {
-				var2 /= n2;
-			}
-
-			double w = (n1 * var1 + n2 * var2);
-			double b = n1 * (avg1-avg)*(avg1-avg) + n2 * (avg2-avg)*(avg2-avg);
-			double r = b/w;
-			if (r > max) {
-				max = r;
-				isRepeat = true;
-				maxIndexBegin = i;
-				threshold = i;
-				ravg = avg1 / avg2;
-			} else if (r == max && isRepeat) {
-				threshold = (i + maxIndexBegin) / 2;
-			} else {
-				isRepeat = false;
+			if (Math.abs(ravg) > 0.7f) {
+				// Maybe single-humped distribution
+				return 0;
 			}
 		}
 		
-		if (Math.abs(ravg) > 0.7f) {
-			// Maybe single-humped distribution
-			return 0;
-		}
 		return threshold;
 	}
 
@@ -1020,7 +1145,7 @@ public class ImageUtil {
 		if (count > 10000) return false; // maybe image.
 //		drawContours(image_source, contours, storage, CvScalar.RED);
 		
-		ArrayList<Rectangle> rects = new ArrayList<Rectangle>();
+		List<Rectangle> rects = new ArrayList<Rectangle>();
 		getRects(contours, rects);
 
 		// Union intersected rects
@@ -1046,7 +1171,7 @@ public class ImageUtil {
 
 
 
-	private static void removeSmallRects(ArrayList<Rectangle> rects) {
+	private static void removeSmallRects(List<Rectangle> rects) {
 		for (int i=rects.size()-1; i >= 0 ; i--) {
 			Rectangle r1 = rects.get(i);
 			if (r1.width * r1.height <= 9) {
@@ -1066,7 +1191,7 @@ public class ImageUtil {
 		int type = TYPE_UNKNOWN;
 		int id = 0;
 		Rectangle rect;
-		ArrayList<Rectangle> elements = new ArrayList<Rectangle>();
+		List<Rectangle> elements = new ArrayList<Rectangle>();
 
 		public LayoutElement(int id) {
 			this.id = id;;
@@ -1292,7 +1417,7 @@ public class ImageUtil {
 			}
 		}
 
-		private double getStandartDeviation(ArrayList<Rectangle> list, double avg) {
+		private double getStandartDeviation(List<Rectangle> list, double avg) {
 			double variance = 0;
 			for (Rectangle r : list) {
 				variance += Math.pow(r.getCenterX() - avg,  2);
@@ -1301,12 +1426,12 @@ public class ImageUtil {
 			return Math.sqrt(uv);
 		}
 
-		private double getStandardScore(ArrayList<Rectangle> list,
+		private double getStandardScore(List<Rectangle> list,
 				double x, double avg, double std) {
 			return (50 + 10 * (x - avg) / std);
 		}
 
-		private double getAverate(ArrayList<Rectangle> list) {
+		private double getAverate(List<Rectangle> list) {
 			double sum = 0.0f;
 			for (Rectangle r : list) {
 				sum += r.getCenterX();
@@ -1330,7 +1455,7 @@ public class ImageUtil {
 		}
 	}
 	
-	private static void getLineElements(ArrayList<Rectangle> rects, ArrayList<LayoutElement> group, IplImage image, boolean doAdjust) {
+	private static void getLineElements(List<Rectangle> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
 		for (Rectangle r : rects) {
@@ -1372,7 +1497,7 @@ public class ImageUtil {
 		}
 	}
 
-	private static void checkImageElement(ArrayList<LayoutElement> group,
+	private static void checkImageElement(List<LayoutElement> group,
 			IplImage image) {
 		CvSize size = image.cvSize();
 		for (LayoutElement le : group) {
@@ -1411,8 +1536,8 @@ public class ImageUtil {
 		
 	}
 
-	private static void groupSeparateRuby(ArrayList<LayoutElement> group) {
-		ArrayList<LayoutElement> rubyList = new ArrayList<LayoutElement>();
+	private static void groupSeparateRuby(List<LayoutElement> group) {
+		List<LayoutElement> rubyList = new ArrayList<LayoutElement>();
 		for (LayoutElement le : group) {
 			LayoutElement ruby = le.extractRuby();
 			if (ruby != null) {
@@ -1423,7 +1548,7 @@ public class ImageUtil {
 		group.addAll(rubyList);
 	}
 
-	private static double calcMedLineWidth(ArrayList<LayoutElement> group) {
+	private static double calcMedLineWidth(List<LayoutElement> group) {
 		ArrayList<Double> widths = new ArrayList<Double>();
 		for (int i=0; i<group.size(); i++) {
 			Rectangle r = group.get(i).rect;
@@ -1436,13 +1561,13 @@ public class ImageUtil {
 		return medLineWidth;
 	}
 
-	private static void adjustElementWidth(ArrayList<LayoutElement> group) {
+	private static void adjustElementWidth(List<LayoutElement> group) {
 		for (LayoutElement le : group) {
 			le.adjustElementWidth();
 		}
 	}
 
-	private static void groupXAxis(ArrayList<LayoutElement> group) {
+	private static void groupXAxis(List<LayoutElement> group) {
 		for (int i=group.size()-1; i>=0; i--) {
 			LayoutElement l1 = group.get(i);
 			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
@@ -1458,7 +1583,7 @@ public class ImageUtil {
 		}
 	}
 
-	private static void groupYAxis(ArrayList<LayoutElement> group, double margin, boolean isChar) {
+	private static void groupYAxis(List<LayoutElement> group, double margin, boolean isChar) {
 		for (int i=group.size()-1; i>=0; i--) {
 			LayoutElement l1 = group.get(i);
 			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
@@ -1593,7 +1718,7 @@ public class ImageUtil {
 		return true;
 	}
 
-	private static void mergeRects(ArrayList<Rectangle> rects) {
+	private static void mergeRects(List<Rectangle> rects) {
 		for (int i=rects.size()-1; i >= 0 ; i--) {
 			Rectangle r1 = rects.get(i);
 			boolean isRemoved = false;
@@ -1627,7 +1752,7 @@ public class ImageUtil {
 		}
 	}
 
-	private static void getRects(CvSeq contours, ArrayList<Rectangle> rects) {
+	private static void getRects(CvSeq contours, List<Rectangle> rects) {
 		while (contours != null && !contours.isNull()) {
             if (contours.elem_size() > 0) {
             	CvRect cr = cvBoundingRect(contours, 1);
@@ -1672,7 +1797,7 @@ public class ImageUtil {
 	}
 	
 	private static void drawRects(IplImage image,
-			ArrayList<Rectangle> rects, int lineWidth, CvScalar rectColor, CvScalar textColor) {
+			List<Rectangle> rects, int lineWidth, CvScalar rectColor, CvScalar textColor) {
 		CvFont font = new CvFont(CV_FONT_HERSHEY_SCRIPT_SIMPLEX, 0.3, 1);
 		int i = 0;
 		for (Rectangle r : rects) {
