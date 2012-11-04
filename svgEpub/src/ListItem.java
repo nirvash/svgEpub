@@ -247,7 +247,7 @@ public class ListItem implements IFile {
 				}
 			}
 			if (isDebug) {
-				tmpFile = LayoutAnalyzer.layoutAnalysis(tmpFile);
+				tmpFile = LayoutAnalyzer.analyzePageLayout(tmpFile);
 			}
 			return tmpFile.toURI().toString();
 		} else {
@@ -271,7 +271,7 @@ public class ListItem implements IFile {
 						return null;
 					}
 				}
-				tmpFile = LayoutAnalyzer.layoutAnalysis(tmpFile);
+				tmpFile = LayoutAnalyzer.analyzePageLayout(tmpFile);
 	
 				return tmpFile.toURI().toString();
 			} else {
