@@ -32,7 +32,7 @@ public class LayoutElement {
 		int type = TYPE_UNKNOWN;
 		int id = 0;
 		Rectangle rect;
-		List<Rectangle> elements = new ArrayList<Rectangle>();
+		List<LayoutElement> elements = new ArrayList<LayoutElement>();
 
 		public LayoutElement(int id) {
 			this.id = id;;
@@ -42,11 +42,15 @@ public class LayoutElement {
 			this.id = id;;
 			this.type = type;
 		}
+		
+		public LayoutElement(Rectangle rect) {
+			this.rect = rect;
+		}
 
 		public double calcAngle(IplImage image) {
 			CvMemStorage storage = cvCreateMemStorage(0);
 			CvSeq points = cvCreateSeq(CV_SEQ_ELTYPE_POINT, Loader.sizeof(CvSeq.class), Loader.sizeof(CvPoint.class), storage);
-			for (Rectangle r : elements) {
+			for (LayoutElement r : elements) {
             	cvSeqPush(points, new CvPoint((int)r.getCenterX(), (int)r.getCenterY()));
 			}
 			
@@ -69,6 +73,15 @@ public class LayoutElement {
 			cvReleaseMemStorage(storage);
 			return angle;
 		}
+
+		private double getCenterX() {
+			return this.rect.getCenterX();
+		}
+
+		private double getCenterY() {
+			return this.rect.getCenterY();
+		}
+
 
 		@Override
 		public String toString() {
@@ -97,15 +110,15 @@ public class LayoutElement {
 			} else {
 				rect.add(rectangle);
 			}
-			elements.add(new Rectangle(rectangle));
+			elements.add(new LayoutElement(new Rectangle(rectangle)));
 		}
 
 		public void adjustElementWidth() {
 			if (rect.height < rect.width*3) return;
 			
-			for (Rectangle r : elements) {
-				r.x = rect.x;
-				r.width = rect.width;
+			for (LayoutElement r : elements) {
+				r.rect.x = rect.x;
+				r.rect.width = rect.width;
 			}
 			
 			LayoutAnalyzer.mergeRects(elements);
@@ -115,13 +128,13 @@ public class LayoutElement {
 			if (elements.size() < 5) return null;
 			if (rect.height < rect.width*3) return null;
 			
-			ArrayList<Rectangle> list = new ArrayList<Rectangle>();
+			ArrayList<LayoutElement> list = new ArrayList<LayoutElement>();
 			double height = rect.width * 6;
 			int split = (int)rect.height / (int)height;
 			height += (rect.height % height) / split;
 			
 			for (int y=0; y + height < rect.height; y+=height/2) {
-				ArrayList<Rectangle> sublist = new ArrayList<Rectangle>();
+				ArrayList<LayoutElement> sublist = new ArrayList<LayoutElement>();
 				getSubGroup(y, y+height, sublist);
 				list.addAll(sublist);
 			}
@@ -136,8 +149,8 @@ public class LayoutElement {
 			int bodyIndex = 0;
 			int maxHeight = 0;
 			for (int i=0; i<list.size(); i++) {
-				if (maxHeight < list.get(i).height) {
-					maxHeight = list.get(i).height;
+				if (maxHeight < list.get(i).height()) {
+					maxHeight = list.get(i).height();
 					bodyIndex = i;
 				}
 			}
@@ -145,11 +158,11 @@ public class LayoutElement {
 			LayoutElement ruby = new LayoutElement(0);
 			ruby.setType(LayoutElement.TYPE_RUBY);
 			
-			for (Rectangle rubyRect : list) {
+			for (LayoutElement rubyRect : list) {
 				for (int i=elements.size()-1; i>=0; i--) {
-					Rectangle r = elements.get(i);
+					LayoutElement r = elements.get(i);
 					if (!rubyRect.intersects(r)) continue;
-					if (rubyRect.x <= r.getCenterX() && r.getCenterX() <= rubyRect.getMaxX()) {
+					if (rubyRect.x() <= r.getCenterX() && r.getCenterX() <= rubyRect.getMaxX()) {
 						ruby.add(r);
 						elements.remove(i);
 					}
@@ -165,32 +178,60 @@ public class LayoutElement {
 			return ruby;
 		}
 		
-		private void getSubGroup(int top, double bottom, ArrayList<Rectangle> sublist) {
-			for (Rectangle r1 : elements) {
+		int width() {
+			return rect.width;
+		}
+
+		int height() {
+			return rect.height;
+		}
+
+		boolean intersects(LayoutElement r) {
+			return rect.intersects(r.rect);
+		}
+
+		private void getSubGroup(int top, double bottom, ArrayList<LayoutElement> sublist) {
+			for (LayoutElement r1 : elements) {
 				if (!(top <= r1.getCenterY() && r1.getCenterY() < bottom)) continue;
 				
 				boolean found = false;
 				for (int i=sublist.size()-1; i>=0; i--) {
-					Rectangle r2 = sublist.get(i);
-					if (isInside(r2.x, r2.getMaxX(), r1.getCenterX(), 0.9f)) {
+					LayoutElement r2 = sublist.get(i);
+					if (isInside(r2.x(), r2.getMaxX(), r1.getCenterX(), 0.9f)) {
 						r2.add(r1);
 						found = true;
 						break;
 					}
 				}
 				if (!found) {
-					Rectangle r3 = new Rectangle(r1); 
+					LayoutElement r3 = new LayoutElement(r1.rect); 
 					sublist.add(r3);
-					for (Rectangle r4 : elements) {
+					for (LayoutElement r4 : elements) {
 						if (!(top <= r4.getCenterY() && r4.getCenterY() < bottom)) continue;
-						if (isInside(r3.x, r3.getMaxX(), r4.getCenterX(), 0.9f)) {
+						if (isInside(r3.x(), r3.getMaxX(), r4.getCenterX(), 0.9f)) {
 							r3.add(r4);
-						} else if (isInside(r4.x, r4.getMaxX(), r3.getCenterX(), 0.9f)) {
+						} else if (isInside(r4.x(), r4.getMaxX(), r3.getCenterX(), 0.9f)) {
 							r3.add(r4);
 						}
 					}					
 				}
 			}
+		}
+
+		double getMaxX() {
+			return rect.getMaxX();
+		}
+
+		double getMaxY() {
+			return rect.getMaxY();
+		}
+
+		int x() {
+			return rect.x;
+		}
+
+		int y() {
+			return rect.y;
 		}
 
 		private static double distance(Rectangle r1, Rectangle r2) {
@@ -206,14 +247,14 @@ public class LayoutElement {
 			return (left < x && x < right);
 		}
 
-		private static void mergeRects2(ArrayList<Rectangle> rects) {
+		private static void mergeRects2(ArrayList<LayoutElement> rects) {
 			for (int i=rects.size()-1; i >= 0 ; i--) {
-				Rectangle r1 = rects.get(i);
+				LayoutElement r1 = rects.get(i);
 				for (int j=0; j<i; j++) {
-					Rectangle r2 = rects.get(j);
+					LayoutElement r2 = rects.get(j);
 					boolean isOverwrap = false;
-					isOverwrap |= isInside(r1.x, r1.getMaxX(), r2.getCenterX(), 0.7f);
-					isOverwrap |= isInside(r2.x, r2.getMaxX(), r1.getCenterX(), 0.7f);
+					isOverwrap |= isInside(r1.x(), r1.getMaxX(), r2.getCenterX(), 0.7f);
+					isOverwrap |= isInside(r2.x(), r2.getMaxX(), r1.getCenterX(), 0.7f);
 					if (isOverwrap) {
 						r2.add(r1);
 						rects.remove(i);
@@ -229,10 +270,10 @@ public class LayoutElement {
 			double avg = getAverate(elements);
 			double std = getStandartDeviation(elements, avg);
 			for (int i=elements.size()-1; i>=0; i--) {
-				Rectangle r = elements.get(i);
-				double ss = getStandardScore(elements, r.getCenterX(), avg, std);
+				LayoutElement le = elements.get(i);
+				double ss = getStandardScore(le.getCenterX(), avg, std);
 				if (ss > 60) {
-					ruby.add(r);
+					ruby.add(le);
 					elements.remove(i);
 				}
 			}
@@ -249,33 +290,32 @@ public class LayoutElement {
 
 		private void calcBoundsRect() {
 			this.rect = null;
-			for (Rectangle r : elements) {
+			for (LayoutElement le : elements) {
 				if (rect == null) {
-					this.rect = new Rectangle(r);
+					this.rect = new Rectangle(le.rect);
 				} else {
-					this.rect.add(r);
+					this.rect.add(le.rect);
 				}
 			}
 		}
 
-		private double getStandartDeviation(List<Rectangle> list, double avg) {
+		private double getStandartDeviation(List<LayoutElement> list, double avg) {
 			double variance = 0;
-			for (Rectangle r : list) {
-				variance += Math.pow(r.getCenterX() - avg,  2);
+			for (LayoutElement le : list) {
+				variance += Math.pow(le.getCenterX() - avg,  2);
 			}
 			double uv = variance / (list.size()-1);
 			return Math.sqrt(uv);
 		}
 
-		private double getStandardScore(List<Rectangle> list,
-				double x, double avg, double std) {
+		private double getStandardScore(double x, double avg, double std) {
 			return (50 + 10 * (x - avg) / std);
 		}
 
-		private double getAverate(List<Rectangle> list) {
+		private double getAverate(List<LayoutElement> list) {
 			double sum = 0.0f;
-			for (Rectangle r : list) {
-				sum += r.getCenterX();
+			for (LayoutElement le : list) {
+				sum += le.getCenterX();
 			}
 			return sum / list.size();
 		}

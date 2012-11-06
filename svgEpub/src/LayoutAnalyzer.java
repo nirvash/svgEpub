@@ -132,8 +132,8 @@ public class LayoutAnalyzer {
 		int i = 0x3041; //small hiragana a
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			for (Rectangle r : le.elements) {
-				cvSetImageROI(image_binary, toCvRect(r, scale));
+			for (LayoutElement r : le.elements) {
+				cvSetImageROI(image_binary, toCvRect(r.rect, scale));
 				String filename = String.format("u%04x.bmp", i);
 				String filenameSvg = String.format("u%04x.svg", i++);
 				cvSaveImage(filename, image_binary);
@@ -253,10 +253,10 @@ public class LayoutAnalyzer {
 		return textColumn;
 	}
 
-	static void removeSmallRects(List<Rectangle> rects) {
+	static void removeSmallRects(List<LayoutElement> rects) {
 		for (int i=rects.size()-1; i >= 0 ; i--) {
-			Rectangle r1 = rects.get(i);
-			if (r1.width * r1.height <= 9) {
+			LayoutElement r1 = rects.get(i);
+			if (r1.width() * r1.height() <= 9) {
 				rects.remove(i);
 			}
 		}		
@@ -424,12 +424,12 @@ public class LayoutAnalyzer {
 		return true;
 	}
 
-	static void mergeRects(List<Rectangle> rects) {
+	static void mergeRects(List<LayoutElement> rects) {
 		for (int i=rects.size()-1; i >= 0 ; i--) {
-			Rectangle r1 = rects.get(i);
+			LayoutElement r1 = rects.get(i);
 			boolean isRemoved = false;
 			for (int j=0; j<i; j++) {
-				Rectangle r2 = rects.get(j);
+				LayoutElement r2 = rects.get(j);
 				if (r1.intersects(r2)) {
 					r2.add(r1);
 					if (!isRemoved) {
@@ -442,12 +442,12 @@ public class LayoutAnalyzer {
 		}
 	}
 
-	static void getRects(CvSeq contours, List<Rectangle> rects) {
+	static void getRects(CvSeq contours, List<LayoutElement> rects) {
 		while (contours != null && !contours.isNull()) {
 			if (contours.elem_size() > 0) {
 				CvRect cr = cvBoundingRect(contours, 1);
 				Rectangle r = new Rectangle(cr.x(), cr.y(), cr.width(), cr.height());
-				rects.add(r);
+				rects.add(new LayoutElement(r));
 			}
 			contours = contours.h_next();
 		}
@@ -533,10 +533,10 @@ public class LayoutAnalyzer {
 		DoubleArrayList hlist = new DoubleArrayList();
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			for (Rectangle r : le.elements) {
-				hlist.add(r.height);
-				r.x = le.rect.x;
-				r.width = le.rect.width;
+			for (LayoutElement r : le.elements) {
+				hlist.add(r.height());
+				r.rect.x = le.rect.x;
+				r.rect.width = le.rect.width;
 			}
 		}
 		if (hlist.size()==0) return;
@@ -558,17 +558,19 @@ public class LayoutAnalyzer {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			if (le.elements.size()==0) continue;
 			Collections.sort(le.elements, new ImageUtility.RectComparator());
-			LinkedList<Rectangle> elems = new LinkedList<Rectangle>(le.elements);
-			Iterator<Rectangle> itr = elems.iterator();
-			Rectangle r0 = null;
-			Rectangle r1 = itr.next();
-			Rectangle r2 = null;
-			if (r1.y < le.rect.y + avgHeight) {
-				r1.add(le.rect.getLocation());
+			LinkedList<LayoutElement> elems = new LinkedList<LayoutElement>(le.elements);
+			Iterator<LayoutElement> itr = elems.iterator();
+			LayoutElement r0 = null;
+			LayoutElement r1 = itr.next();
+			LayoutElement r2 = null;
+			if (r1.y() < le.y() + avgHeight) {
+				r1.rect.add(le.rect.getLocation());
 			} else {
 				// insert space character
-				int height = Math.min(charHeight, r1.y - le.rect.y);
-				elems.addFirst(new Rectangle(le.rect.x, le.rect.y, le.rect.width, height));
+				int height = Math.min(charHeight, r1.y() - le.y());
+				Rectangle r = new Rectangle(le.x(), le.y(), le.width(), height);
+				LayoutElement newElem = new LayoutElement(r);
+				elems.addFirst(newElem);
 				itr = elems.iterator();
 				r1 = itr.next();
 			}
@@ -580,9 +582,9 @@ public class LayoutAnalyzer {
 				boolean merged = false;
 				do {
 					merged = false;
-					if (r1.height < charHeight) {
-						if (r2.y - r1.getMaxY() > charHeight/2) break; // Too far to merge
-						if (r2.getMaxY() - r1.y <= charHeight+1) {
+					if (r1.height() < charHeight) {
+						if (r2.y() - r1.getMaxY() > charHeight/2) break; // Too far to merge
+						if (r2.getMaxY() - r1.y() <= charHeight+1) {
 							merged = true;
 							r1.add(r2);
 							itr.remove();
@@ -596,14 +598,14 @@ public class LayoutAnalyzer {
 				} while (merged);
 				if (lastChar) break;
 
-				if (r1.height < charHeight) {
+				if (r1.height() < charHeight) {
 					int marginTop = 0, marginBottom = 0;
-					if (r0 != null && r1.y - r0.getMaxY() > 0) {
-						marginTop = Math.max(0, (int)r0.getMaxY() - r1.y);
+					if (r0 != null && r1.y() - r0.getMaxY() > 0) {
+						marginTop = Math.max(0, (int)r0.getMaxY() - r1.y());
 					}
-					marginBottom = Math.max(0, r2.y - (int)r1.getMaxY());
+					marginBottom = Math.max(0, r2.y() - (int)r1.getMaxY());
 					int maxMarginBottom = marginBottom;
-					int diff = charHeight - r1.height;
+					int diff = charHeight - r1.height();
 					marginTop -= diff/2;
 					marginBottom -= (diff - diff/2);
 					if (marginTop < 0) {
@@ -616,8 +618,8 @@ public class LayoutAnalyzer {
 
 					marginBottom = Math.min(marginBottom, maxMarginBottom);
 
-					if (r0 != null) r1.add(new Point(r1.x, (int)r0.getMaxY() + marginTop));
-					r1.add(new Point(r1.x, r2.y - marginBottom));
+					if (r0 != null) r1.rect.add(new Point(r1.x(), (int)r0.getMaxY() + marginTop));
+					r1.rect.add(new Point(r1.x(), r2.y() - marginBottom));
 				}
 
 				r0 = r1;
@@ -626,12 +628,12 @@ public class LayoutAnalyzer {
 
 			// Align the last character in the line.
 			if (r1 != null) {
-				if (r0 != null && r1.y - r0.getMaxY() > 0) {
-					r1.add(new Point(r1.x, (int)r0.getMaxY()));
+				if (r0 != null && r1.y() - r0.getMaxY() > 0) {
+					r1.rect.add(new Point(r1.x(), (int)r0.getMaxY()));
 				}
-				if (r1.height < charHeight) {
-					r1.height += charHeight - r1.height;
-					le.rect.add(r1);
+				if (r1.height() < charHeight) {
+					r1.rect.height += charHeight - r1.height();
+					le.rect.add(r1.rect);
 				}
 			}
 
@@ -949,7 +951,7 @@ public class LayoutAnalyzer {
 		if (count > 10000) return false; // maybe image.
 		//		drawContours(image_source, contours, storage, CvScalar.RED);
 
-		List<Rectangle> rects = new ArrayList<Rectangle>();
+		List<LayoutElement> rects = new ArrayList<LayoutElement>();
 		getRects(contours, rects);
 
 		// Union intersected rects
@@ -972,12 +974,12 @@ public class LayoutAnalyzer {
 		return true;
 	}
 
-	static void getLineElements(List<Rectangle> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
+	static void getLineElements(List<LayoutElement> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
-		for (Rectangle r : rects) {
+		for (LayoutElement r : rects) {
 			LayoutElement le = new LayoutElement(i++);
-			le.add(new Rectangle(r));
+			le.add(new Rectangle(r.rect));
 			group.add(le);
 		}
 
@@ -1047,16 +1049,16 @@ public class LayoutAnalyzer {
 	}
 
 	static void drawRects(IplImage image,
-			List<Rectangle> rects, int lineWidth, CvScalar rectColor, CvScalar textColor) {
+			List<LayoutElement> rects, int lineWidth, CvScalar rectColor, CvScalar textColor) {
 		CvFont font = new CvFont(CV_FONT_HERSHEY_SCRIPT_SIMPLEX, 0.3, 1);
 		int i = 0;
-		for (Rectangle r : rects) {
-			cvRectangle(image, cvPoint(r.x, r.y), 
-					cvPoint(r.x + r.width, r.y + r.height),
+		for (LayoutElement r : rects) {
+			cvRectangle(image, cvPoint(r.x(), r.y()), 
+					cvPoint(r.x() + r.width(), r.y() + r.height()),
 					rectColor, lineWidth, 0, 0);
 			if (textColor != null) {
 				String text = Integer.toString(i++);
-				cvPutText(image, text, cvPoint(r.x, r.y), font, textColor);
+				cvPutText(image, text, cvPoint(r.x(), r.y()), font, textColor);
 			}
 		}
 	}
