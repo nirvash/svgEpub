@@ -10,6 +10,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -78,6 +79,8 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	
 	private JButton jButtonAutoClip;
 	private JButton jButtonClipTemplate;
+	private JButton jButtonLayoutAnalyze;
+
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
 		return properties;
@@ -113,6 +116,16 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 
 	}
 	
+	private JButton getJButtonLayoutAnalyze() {
+		if (jButtonLayoutAnalyze == null) {
+			jButtonLayoutAnalyze = new JButton();
+			jButtonLayoutAnalyze.setText("Anaylyze Layout");
+			jButtonLayoutAnalyze.setActionCommand("AnalyzeLayout");
+			jButtonLayoutAnalyze.addActionListener(this);
+		}
+		return jButtonLayoutAnalyze;
+	}
+	
 	private JButton getJButtonClipTemplate() {
 		if (jButtonClipTemplate == null) {
 			jButtonClipTemplate = new JButton();
@@ -122,7 +135,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		}
 		return jButtonClipTemplate;
 	}
-
+	
 	private JButton getJButtonAutoClip() {
 		if (jButtonAutoClip == null) {
 			jButtonAutoClip = new JButton();
@@ -404,6 +417,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			jPanelNorth.add(getJButtonResetClip());
 			jPanelNorth.add(getJButtonAutoClip());
 			jPanelNorth.add(getJButtonClipTemplate());
+			jPanelNorth.add(getJButtonLayoutAnalyze());
 			jPanelNorth.add(getJPanel0());
 			jPanelNorth.add(getJButtonConfig());
 		}
@@ -591,6 +605,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			cliplist.add(new ClipListItem(null, clipName));
 			
 			itemSelectionListener.updateItem(jListFile.getSelectedIndex());
+		} else if (e.getActionCommand().equals("AnalyzeLayout")) {
+			if (jListFile.isSelectionEmpty()) return;
+			ListItem item = (ListItem)jListFile.getSelectedValue();
+			InputStream in = item.getInputStream();
+			LayoutAnalyzer.createFont(in);
 		} else if (e.getActionCommand().equals("Analyze")) {
 			if (jListFile.isSelectionEmpty()) return;
 			

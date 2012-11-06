@@ -46,6 +46,8 @@ import static com.googlecode.javacv.cpp.opencv_imgproc.cvWarpAffine;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,7 +74,6 @@ import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 
 public class LayoutAnalyzer {
-
 	static class LayoutElement {
 		public static final int TYPE_UNKNOWN = 0;
 		public static final int TYPE_IMAGE = 1;
@@ -346,11 +347,38 @@ public class LayoutAnalyzer {
 			return colorTable[type];
 		}
 	}
+	
+	public static void createFont(InputStream in) {
+		File file = new File(PathUtil.getTmpDirectory()+"/tmpimage");
+		try {
+			ImageUtility.copyFile(in, file);
+			in.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		IplImage image_source = cvLoadImage(file.getPath());
+		ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
+
+		analyzePageLayout(image_source, elements);
+		learnGlyphs(image_source, elements);
+		cvReleaseImage(image_source);
+	}
 
 	public static File analyzePageLayout(File file) {
 		IplImage image_source = cvLoadImage(file.getPath());
-		ArrayList<LayoutAnalyzer.LayoutElement> elements = new ArrayList<LayoutAnalyzer.LayoutElement>();
+		ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
 
+		analyzePageLayout(image_source, elements);
+		drawGroup(image_source, elements, 2, CvScalar.MAGENTA, CvScalar.CYAN);
+		
+		cvSaveImage(file.getPath(), image_source);
+		cvReleaseImage(image_source);
+		return file;
+	}
+	
+	public static void analyzePageLayout(IplImage image_source, ArrayList<LayoutElement> elements) {
 		if (LayoutAnalyzer.getLineElement(image_source, elements, false, false)) {
 			/*
 				IplImage tmp = cvCloneImage(image_source);
@@ -363,42 +391,35 @@ public class LayoutAnalyzer {
 
 			LayoutAnalyzer.getLineElement(image_source, elements, true, true);
 			LayoutAnalyzer.analyzeLayout(image_source, elements);
-			
-			createEpubPage(image_source, elements);
-
-			LayoutAnalyzer.drawGroup(image_source, elements, 2, CvScalar.MAGENTA, CvScalar.CYAN);
-
-			//			cvSaveImage("test_after.png", image_source);
 		}
-
-		cvSaveImage(file.getPath(), image_source);
-
-		cvReleaseImage(image_source);
-		return file;
 	}
 
-	private static void createEpubPage(IplImage image_source,
+	private static void learnGlyphs(IplImage image_source,
 			ArrayList<LayoutElement> elements) {
 		
-		double scale = 2.0f;
+		double scale = 1.0f;
 		CvSize size = new CvSize((int)(image_source.width()*scale), 
  								 (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( size, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
 
+		int i = 0x3041; //small hiragana a
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			int i = 0;
 			for (Rectangle r : le.elements) {
 				cvSetImageROI(image_binary, toCvRect(r, scale));
-				String filename = String.format("%s-%d.bmp", le.toString(), i++);
+				String filename = String.format("u%04x.bmp", i);
+				String filenameSvg = String.format("u%04x.svg", i++);
 				cvSaveImage(filename, image_binary);
 				
 				File tmpFile = new File(filename);
 				File svgFile = Epub.convertToSvgFromImage(new FileItem(tmpFile, null));
-				
+				File moveDir = new File("c:\\fontforge\\svg");
+				if (!moveDir.exists()) moveDir.mkdirs();
+				File moveFile = new File(moveDir.getPath() + "\\" + filenameSvg);
+				if (moveFile.exists()) moveFile.delete();
+				svgFile.renameTo(moveFile);
 				tmpFile.delete();
-				svgFile.deleteOnExit();
 			}
 		}
 		
