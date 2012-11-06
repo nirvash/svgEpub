@@ -1,2 +1,4 @@
 eclipse.preferences.version=1
-encoding//src/CustomProperties.java=UTF-8
+encoding//src/com/github/nirvash/svgEpub/CustomProperties.java=UTF-8
+encoding//src/jknnl/activationFunction/ActivationFunctionModel.java=UTF-8
+encoding//src/jknnl/topology/HexagonalTopology.java=UTF-8
