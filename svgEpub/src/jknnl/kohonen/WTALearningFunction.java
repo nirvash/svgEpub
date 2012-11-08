@@ -206,7 +206,7 @@ public class WTALearningFunction {
      * @param vector input vector
      * @return Neuron number
      */
-    protected int getBestNeuron(double[] vector){
+    public int getBestNeuron(double[] vector){
         NeuronModel tempNeuron;
         double distance, bestDistance = -1;
         int networkSize = networkModel.getNumbersOfNeurons();

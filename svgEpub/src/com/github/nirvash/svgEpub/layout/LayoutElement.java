@@ -1,27 +1,25 @@
 package com.github.nirvash.svgEpub.layout;
-import static com.googlecode.javacv.cpp.opencv_core.CV_AA;
-import static com.googlecode.javacv.cpp.opencv_core.CV_SEQ_ELTYPE_POINT;
-import static com.googlecode.javacv.cpp.opencv_core.cvClearSeq;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateMemStorage;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateSeq;
-import static com.googlecode.javacv.cpp.opencv_core.cvLine;
-import static com.googlecode.javacv.cpp.opencv_core.cvReleaseMemStorage;
-import static com.googlecode.javacv.cpp.opencv_core.cvSeqPush;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_DIST_L2;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvFitLine;
+import static com.googlecode.javacv.cpp.opencv_core.*;
+import static com.googlecode.javacv.cpp.opencv_imgproc.*;
+
 
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.nio.ByteBuffer;
+import java.nio.DoubleBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
 import com.googlecode.javacv.cpp.opencv_core.CvPoint;
 import com.googlecode.javacv.cpp.opencv_core.CvScalar;
 import com.googlecode.javacv.cpp.opencv_core.CvSeq;
+import com.googlecode.javacv.cpp.opencv_core.CvSize;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
-
+import com.googlecode.javacv.cpp.opencv_highgui;
+import static com.googlecode.javacv.cpp.opencv_highgui.cvSaveImage;
 
 public class LayoutElement {
 		public static final int TYPE_UNKNOWN = 0;
@@ -334,5 +332,29 @@ public class LayoutElement {
 				CvScalar.RED, CvScalar.BLUE, CvScalar.MAGENTA, CvScalar.CYAN, CvScalar.GREEN
 			};
 			return colorTable[type];
+		}
+
+		double[] vector = null;
+		public void createVector(IplImage image, double scale, int width, int height) {
+			vector = new double[height];
+			CvRect roi = LayoutAnalyzer.toCvRect(rect, scale);
+			cvSetImageROI(image, roi);
+			CvSize targetSize = new CvSize(width, height);
+			IplImage image_dst = cvCreateImage( targetSize, IPL_DEPTH_8U, 1);
+			cvResize(image, image_dst, CV_INTER_LINEAR);
+			ByteBuffer buf = image_dst.getByteBuffer();
+			for (int y=0; y<height; y++) {
+				double v = 0.0f;
+				for (int x=0; x<width; x++) {
+					v += ((buf.get(y*image_dst.widthStep()+x) & 0xFF) / 255) << x;
+				}
+				vector[y] = v;
+			}
+//			cvSaveImage(UUID.randomUUID()+".png", image_dst);
+			cvReleaseImage(image_dst);
+		}
+		
+		public double[] getVector() {
+			return vector;
 		}
 	}

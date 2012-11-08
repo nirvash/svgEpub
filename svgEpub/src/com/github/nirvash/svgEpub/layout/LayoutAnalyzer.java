@@ -1,48 +1,19 @@
 package com.github.nirvash.svgEpub.layout;
-import static com.googlecode.javacv.cpp.opencv_core.CV_32FC1;
-import static com.googlecode.javacv.cpp.opencv_core.CV_AA;
-import static com.googlecode.javacv.cpp.opencv_core.CV_FONT_HERSHEY_SCRIPT_SIMPLEX;
-import static com.googlecode.javacv.cpp.opencv_core.CV_SEQ_ELTYPE_POINT;
-import static com.googlecode.javacv.cpp.opencv_core.IPL_DEPTH_8U;
-import static com.googlecode.javacv.cpp.opencv_core.cvAddWeighted;
-import static com.googlecode.javacv.cpp.opencv_core.cvAvgSdv;
-import static com.googlecode.javacv.cpp.opencv_core.cvClearSeq;
-import static com.googlecode.javacv.cpp.opencv_core.cvCloneImage;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateImage;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateMat;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateMemStorage;
-import static com.googlecode.javacv.cpp.opencv_core.cvCreateSeq;
-import static com.googlecode.javacv.cpp.opencv_core.cvGetSeqElem;
-import static com.googlecode.javacv.cpp.opencv_core.cvLine;
-import static com.googlecode.javacv.cpp.opencv_core.cvNot;
-import static com.googlecode.javacv.cpp.opencv_core.cvPoint;
-import static com.googlecode.javacv.cpp.opencv_core.cvPutText;
-import static com.googlecode.javacv.cpp.opencv_core.cvRectangle;
-import static com.googlecode.javacv.cpp.opencv_core.cvReleaseImage;
-import static com.googlecode.javacv.cpp.opencv_core.cvReleaseMemStorage;
-import static com.googlecode.javacv.cpp.opencv_core.cvResetImageROI;
-import static com.googlecode.javacv.cpp.opencv_core.cvScalarAll;
-import static com.googlecode.javacv.cpp.opencv_core.cvSeqPush;
-import static com.googlecode.javacv.cpp.opencv_core.cvSet;
-import static com.googlecode.javacv.cpp.opencv_core.cvSetImageROI;
-import static com.googlecode.javacv.cpp.opencv_highgui.CV_FONT_NORMAL;
-import static com.googlecode.javacv.cpp.opencv_highgui.cvLoadImage;
-import static com.googlecode.javacv.cpp.opencv_highgui.cvSaveImage;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_CHAIN_APPROX_SIMPLE;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_DIST_L2;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_HOUGH_STANDARD;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_INTER_LINEAR;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_RETR_LIST;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_RGB2HSV;
-import static com.googlecode.javacv.cpp.opencv_imgproc.CV_WARP_FILL_OUTLIERS;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cv2DRotationMatrix;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvBoundingRect;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvCanny;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvCvtColor;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvFindContours;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvFitLine;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvHoughLines2;
-import static com.googlecode.javacv.cpp.opencv_imgproc.cvWarpAffine;
+
+import com.googlecode.javacpp.Loader;
+import com.googlecode.javacpp.FloatPointer;
+import com.googlecode.javacv.cpp.opencv_core.CvArr;
+import com.googlecode.javacv.cpp.opencv_core.CvMat;
+import com.googlecode.javacv.cpp.opencv_core.*;
+import com.googlecode.javacv.cpp.opencv_nonfree.*;
+import com.googlecode.javacv.cpp.opencv_features2d.*;
+import com.googlecode.javacv.cpp.opencv_imgproc.*;
+
+import static com.googlecode.javacv.cpp.opencv_core.*;
+import static com.googlecode.javacv.cpp.opencv_imgproc.*;
+import static com.googlecode.javacv.cpp.opencv_flann.*;
+import static com.googlecode.javacv.cpp.opencv_highgui.*;
+import static com.googlecode.javacv.cpp.opencv_features2d.*;
 
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -52,11 +23,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-import jknnl.kohonen.LearningData;
 import jknnl.kohonen.WTALearningFunction;
 import jknnl.learningFactorFunctional.ConstantFunctionalFactor;
 import jknnl.metrics.EuclidesMetric;
@@ -70,19 +41,6 @@ import com.github.nirvash.svgEpub.Epub;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.util.ImageUtility;
 import com.github.nirvash.svgEpub.util.PathUtil;
-import com.googlecode.javacpp.FloatPointer;
-import com.googlecode.javacpp.Loader;
-import com.googlecode.javacv.cpp.opencv_core.CvContour;
-import com.googlecode.javacv.cpp.opencv_core.CvFont;
-import com.googlecode.javacv.cpp.opencv_core.CvMat;
-import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
-import com.googlecode.javacv.cpp.opencv_core.CvPoint;
-import com.googlecode.javacv.cpp.opencv_core.CvPoint2D32f;
-import com.googlecode.javacv.cpp.opencv_core.CvRect;
-import com.googlecode.javacv.cpp.opencv_core.CvScalar;
-import com.googlecode.javacv.cpp.opencv_core.CvSeq;
-import com.googlecode.javacv.cpp.opencv_core.CvSize;
-import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 
 public class LayoutAnalyzer {
@@ -134,6 +92,88 @@ public class LayoutAnalyzer {
 
 	private static void learnGlyphs(IplImage image_source,
 			ArrayList<LayoutElement> elements) {
+		double scale = 1.0f;
+		CvSize size = new CvSize((int)(image_source.width()*scale), 
+ 								 (int)(image_source.height()*scale));
+		IplImage image_binary = cvCreateImage( size, IPL_DEPTH_8U, 1);
+		ImageUtility.binalize(image_source, image_binary, false);
+
+		int i=0;
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			for (LayoutElement r : le.elements) {
+				CvRect rect = toCvRect(r.rect, scale);
+				cvSetImageROI(image_binary, rect);
+				extractSift(image_binary, rect, i);
+				//extractSurf(image_source, image_binary, i);
+				i++;
+			}
+		}
+		
+		cvReleaseImage(image_binary);
+	}
+
+	private static void extractSift(IplImage image_binary, CvRect size, int i ) {
+		double aspect = (double)(size.width())/size.height();
+//		CvSize charSize = new CvSize((int)(100*aspect), 100);
+		CvSize charSize = new CvSize(size.width(), size.height());
+
+		IplImage image_char = cvCreateImage(charSize, image_binary.depth(), 1);
+		cvResize(image_binary, image_char, CV_INTER_NN);
+		
+		
+		KeyPoint keyPoints = new KeyPoint();
+		int nfeatures = 0;
+		int nOctaveLayers = 4;
+		double contrastThreshold = 0.01;
+		double edgeThreshold = 15;
+		double sigma = 0.5;
+		SIFT sift = new SIFT(nfeatures, nOctaveLayers, contrastThreshold, edgeThreshold, sigma);
+//		sift.detect(image_char, descriptors, keyPoints);
+		CvMat descriptors = cvCreateMat(1, 128, CV_32F); // row will be allocated by detect func.
+		sift.detectAndCompute(image_char, null, keyPoints, descriptors, false);
+		/*
+		if (keyPoints.size() != 0) {
+			IndexParams indexParams = new KDTreeIndexParams(4);
+			Index index = new Index(descriptors, indexParams, FLANN_DIST_EUCLIDEAN);
+			SearchParams searchParams = new SearchParams(64, 0, true);
+
+			
+			int knn = 2;
+			CvArr databaseMat = cvCreateMat(1, 128, CV_32F);
+			cvGetM
+			CvMat indiciesMat = null;
+			CvMat distMat = null;
+			index.knnSearch(databaseMat, indiciesMat, distMat, knn, searchParams);
+		}
+*/		
+		IplImage tmp = cvCreateImage(cvGetSize(image_char), image_char.depth(), 3);
+		drawKeypoints(image_char, keyPoints, tmp, CvScalar.RED, DrawMatchesFlags.DRAW_RICH_KEYPOINTS);
+		cvSaveImage(String.format("font\\%d.png", i), tmp);
+		cvReleaseImage(image_char);
+		cvReleaseImage(tmp);
+	}
+
+	private static void extractSurf(IplImage image_source,
+			IplImage image_binary, int i) {
+		double hessianThreshold = 300;
+		int nOctaves = 4;
+		int nOctaveLayers = 2;
+		boolean extended = true;
+		boolean upright = true;
+		SURF surf = new SURF(hessianThreshold, nOctaves, nOctaveLayers, extended, upright);
+		KeyPoint keyPoints = new KeyPoint();
+		surf.detect(image_source, null, keyPoints);
+		
+		IplImage tmp = cvCreateImage(cvGetSize(image_source), image_binary.depth(), 3);
+		drawKeypoints(image_source, keyPoints, tmp, CvScalar.RED, DrawMatchesFlags.DRAW_RICH_KEYPOINTS);
+		cvSaveImage(String.format("font\\%d.png", i), tmp);
+		cvReleaseImage(tmp);
+	}
+
+
+	private static void learnGlyphsSOM(IplImage image_source,
+			ArrayList<LayoutElement> elements) {
 		
 		double scale = 1.0f;
 		CvSize size = new CvSize((int)(image_source.width()*scale), 
@@ -141,12 +181,38 @@ public class LayoutAnalyzer {
 		IplImage image_binary = cvCreateImage( size, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
 
-		HexagonalTopology topology = new HexagonalTopology(50, 50);
-		double[] maxWeight = { 1 };
-		DefaultNetwork network = new DefaultNetwork(1, maxWeight, topology);
+		HexagonalTopology topology = new HexagonalTopology(40, 40);
+		double[] maxWeight = new double[16];
+		Arrays.fill(maxWeight, 1 << 16);
+		
+		DefaultNetwork network = new DefaultNetwork(16, maxWeight, topology);
 		ConstantFunctionalFactor constantFator = new ConstantFunctionalFactor(0.8);
-		FontDataModel learningData = new FontDataModel(elements);
-		WTALearningFunction learning = new WTALearningFunction(network, 20, new EuclidesMetric(), learningData, constantFator);
+		FontDataModel learningData = new FontDataModel(elements, image_binary, scale, 16, 16);
+		WTALearningFunction learning = new WTALearningFunction(network, 500, new EuclidesMetric(), learningData, constantFator);
+		learning.learn();
+
+		HashMap<Integer, Integer> map = new HashMap<Integer, Integer>();
+		
+		for (int i=0; i<learningData.getDataSize(); i++) {
+			int ret = learning.getBestNeuron(learningData.getData(i));
+			map.put(ret, i);
+		}
+		
+		for (int i=0; i<learningData.getDataSize(); i++) {
+			LayoutElement le = learningData.getLayoutElement(i);
+			
+			cvSetImageROI(image_binary, toCvRect(le.rect, scale));
+			String filename = String.format("in\\%d.png", i);
+			cvSaveImage(filename, image_binary);
+			
+			int ret = learning.getBestNeuron(learningData.getData(i));
+			
+			le = learningData.getLayoutElement(map.get(ret));
+			
+			cvSetImageROI(image_binary, toCvRect(le.rect, scale));
+			filename = String.format("out\\%d.png", i);
+			cvSaveImage(filename, image_binary);
+		}
 		
 		
 		int i = 0x3041; //small hiragana a
@@ -173,7 +239,7 @@ public class LayoutAnalyzer {
 		cvReleaseImage(image_binary);
 	}
 
-	private static CvRect toCvRect(Rectangle r, double scale) {
+	public static CvRect toCvRect(Rectangle r, double scale) {
 		return new CvRect((int)(r.x*scale), (int)(r.y*scale), 
 				          (int)(r.width*scale), (int)(r.height*scale));
 	}
