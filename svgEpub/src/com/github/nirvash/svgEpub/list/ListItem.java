@@ -36,6 +36,7 @@ public class ListItem implements IFile {
 	private File svgFile = null;
 	private boolean isConvertToSVG = false;
 	private boolean canConvertToSVG = true;
+	private boolean doLayoutAnalyze = false;
 	
 	private ArrayList<ClipListItem> clipRectList = new ArrayList<ClipListItem>();
 	private int selectedClipIndex = 0;
@@ -228,10 +229,6 @@ public class ListItem implements IFile {
 	}
 	
 	public String getURI() {
-		boolean isDebug = false;
-		if (properties != null) {
-			isDebug = properties.getProperty("debug", "no").equals("yes");
-		}
 		if (zipFile != null || rarFile != null) {
 			String path = PathUtil.getTmpDirectory();
 			path += UUID.randomUUID().toString() + "." + PathUtil.getExtension(getFilename());
@@ -252,12 +249,12 @@ public class ListItem implements IFile {
 					return null;
 				}
 			}
-			if (isDebug) {
+			if (doLayoutAnalyze) {
 				tmpFile = LayoutAnalyzer.analyzePageLayout(tmpFile);
 			}
 			return tmpFile.toURI().toString();
 		} else {
-			if (isDebug) {
+			if (doLayoutAnalyze) {
 				String path = PathUtil.getTmpDirectory();
 				path += UUID.randomUUID().toString() + "." + PathUtil.getExtension(getFilename());
 				File tmpFile = new File(path);
@@ -291,5 +288,9 @@ public class ListItem implements IFile {
 		if (PathUtil.isSvgFile(getFilename())) return;
 
 		this.isConvertToSVG = ImageUtility.isTextImage(this);
+	}
+
+	public void setLayoutAnalyze(boolean doLayoutAnalyze) {
+		this.doLayoutAnalyze = doLayoutAnalyze;
 	}
 }

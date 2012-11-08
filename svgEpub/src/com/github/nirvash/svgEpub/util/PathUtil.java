@@ -80,4 +80,9 @@ public class PathUtil {
 			}
 		}
 	}
+
+	public static boolean isExist(String path) {
+		File file = new File(path);
+		return file.isFile() && file.canExecute() && file.exists();
+	}
 }

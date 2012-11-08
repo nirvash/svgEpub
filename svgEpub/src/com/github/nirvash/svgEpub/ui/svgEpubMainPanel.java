@@ -115,7 +115,8 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			if (config.exists()) {
 				properties.loadFromXML(new FileInputStream(config));
 			} else {
-				properties.loadFromXML(svgEpubMainPanel.class.getResourceAsStream("config.xml"));
+				ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+				properties.loadFromXML(classLoader.getResourceAsStream("config.xml"));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -141,6 +142,8 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			jButtonLayoutAnalyze.setText("Anaylyze Layout");
 			jButtonLayoutAnalyze.setActionCommand("AnalyzeLayout");
 			jButtonLayoutAnalyze.addActionListener(this);
+			boolean enabled = properties.getProperty("enable_opencv", "no").equals("yes");
+			jButtonLayoutAnalyze.setEnabled(enabled);
 		}
 		return jButtonLayoutAnalyze;
 	}
@@ -182,7 +185,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			menuItemRemove.addActionListener(this);
 			jListFilePopupMenu.add(menuItemRemove);
 			
-			JMenuItem menuItemAnalyze= new JMenuItem("Check text or illust");
+			JMenuItem menuItemAnalyze= new JMenuItem("Check Text or Illust");
 			menuItemAnalyze.setActionCommand("Analyze");
 			menuItemAnalyze.addActionListener(this);
 			jListFilePopupMenu.add(menuItemAnalyze);
@@ -196,11 +199,12 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			menuItem2.setActionCommand("PasteClip");
 			menuItem2.addActionListener(this);
 			jListFilePopupMenu.add(menuItem2);
-			
+/*			
 			JMenuItem menuItem3 = new JMenuItem("OCR");
 			menuItem3.setActionCommand("OCR");
 			menuItem3.addActionListener(this);
 			jListFilePopupMenu.add(menuItem3);
+*/
 		}
 		return jListFilePopupMenu;
 	}
@@ -626,9 +630,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			itemSelectionListener.updateItem(jListFile.getSelectedIndex());
 		} else if (e.getActionCommand().equals("AnalyzeLayout")) {
 			if (jListFile.isSelectionEmpty()) return;
+			int index = jListFile.getSelectedIndex();
 			ListItem item = (ListItem)jListFile.getSelectedValue();
-			InputStream in = item.getInputStream();
-			LayoutAnalyzer.createFont(in);
+			item.setLayoutAnalyze(true);
+			itemSelectionListener.updateItem(index);
+			item.setLayoutAnalyze(false);
 		} else if (e.getActionCommand().equals("Analyze")) {
 			if (jListFile.isSelectionEmpty()) return;
 			
@@ -710,8 +716,10 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		if (itemSelectionListener != null) {
 			itemSelectionListener.updateItem(getJListFile().getSelectedIndex());
 		}
-		ImageUtility.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));
-		jButtonAutoClip.setEnabled(properties.getProperty("enable_opencv", "no").equals("yes"));
+		boolean enable_opencv = properties.getProperty("enable_opencv", "no").equals("yes");
+		ImageUtility.initialize(enable_opencv);
+		jButtonAutoClip.setEnabled(enable_opencv);
+		getJButtonLayoutAnalyze().setEnabled(enable_opencv);
 	}
 	
 	public void applyClipTemplate(ClipTemplate template) {

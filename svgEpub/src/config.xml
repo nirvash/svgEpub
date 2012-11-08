@@ -12,12 +12,10 @@
 <entry key="mkbitmap_path_win64">thirdparty/potrace/win64/mkbitmap.exe</entry>
 
 <entry key="mkbitmap_option">-x -s 2 -f 2 -b 1 -3 -t 0.5</entry>
-<entry key="mkbitmap_option_sample">-x -s 2 -f 4 -b 1 -1 -t 0.5</entry>
-
 <entry key="potrace_option">-s -u 7 -a 0</entry>
-<entry key="potrace_option_sample">-s -u 9 -a 0 --tight</entry>
 
 <entry key="enable_opencv">no</entry>
+<entry key="fontforge_path"></entry>
   
 <entry key="pageProgressionDirection">rtl</entry> <!-- rtl or ltr -->
 <entry key="savePath"></entry>

@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
@@ -30,11 +31,12 @@ import javax.swing.ProgressMonitor;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+import nl.siegmann.epublib.util.StringUtil;
+
 import com.github.nirvash.svgEpub.CustomProperties;
 import com.github.nirvash.svgEpub.Epub;
 import com.github.nirvash.svgEpub.list.ListItem;
-
-import nl.siegmann.epublib.util.StringUtil;
+import com.github.nirvash.svgEpub.util.PathUtil;
 
 //VS4E -- DO NOT REMOVE THIS LINE!
 public class SaveDialog extends JDialog implements ActionListener, ComponentListener {
@@ -59,6 +61,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private JTextField jTextField4;
 	private JLabel jLabel5;
 	private JTextField jTextField5;
+	private JCheckBox jCheckBoxReflow;
 
 	
 	private Epub epubWriter = new Epub();
@@ -154,7 +157,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		add(getJPanel0(), BorderLayout.SOUTH);
 		add(getJPanel2(), BorderLayout.CENTER);
 		addComponentListener(this);
-		setSize(475, 304);
+		setSize(475, 345);
 	}
 
 	private JTextField getJTextField3() {
@@ -322,8 +325,18 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 
 			addGrid(jPanel2, getJLabel3(),		0, 5, 0.0f);
 			addGrid(jPanel2, getJTextField3(),	1, 5, 1.0f);
+			
+			addGrid(jPanel2, getCheckBox(),		1, 6, 0.0f);
 		}
 		return jPanel2;
+	}
+
+	private JCheckBox getCheckBox() {
+		if (jCheckBoxReflow == null) {
+			jCheckBoxReflow = new JCheckBox();
+			jCheckBoxReflow.setText("Reflow Text");
+		}
+		return jCheckBoxReflow;
 	}
 
 	private void addGrid(JComponent parent, JComponent child, int x, int y, float w) {
@@ -485,6 +498,15 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 
 	@Override
 	public void componentShown(ComponentEvent arg0) {
+		boolean enableReflow = false;
+		if (properties.getProperty("enable_opencv", "no").equals("yes")) {
+			String path = properties.getProperty("fontforge_path", "");
+			enableReflow = PathUtil.isExist(path);
+		}
+		getCheckBox().setEnabled(enableReflow);
+		if (!enableReflow) {
+			getCheckBox().setSelected(false);
+		}
 	}
 
 }
