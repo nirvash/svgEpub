@@ -2,7 +2,6 @@ package com.github.nirvash.svgEpub.util;
 import java.awt.Color;
 import java.awt.Rectangle;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -74,12 +73,12 @@ public class ImageUtility {
 		IplImage image_source;
 		
 		try {
-			copyFile(item.getInputStream(), tmpFile);
+			PathUtil.copyFile(item.getInputStream(), tmpFile);
 			image_source = cvLoadImage(tmpFile.getPath());
 			if (image_source == null) {
 				// workaround: Retry file copy (Sometimes it fails to decode rar archive?)
 				tmpFile.delete();
-				copyFile(item.getInputStream(), tmpFile);
+				PathUtil.copyFile(item.getInputStream(), tmpFile);
 				image_source = cvLoadImage(tmpFile.getPath());
 				if (image_source == null) {
 					JOptionPane.showMessageDialog(null, "Failed to convert " + item.getFilename());
@@ -114,7 +113,7 @@ public class ImageUtility {
 		File outFile = new File(outFilename);
 		outFile.deleteOnExit();
 		try {
-			copyFile(tmpOutFile, outFile);
+			PathUtil.copyFile(tmpOutFile, outFile);
 		} catch (IOException e) {
 			e.printStackTrace();
 			return null;
@@ -259,39 +258,6 @@ public class ImageUtility {
 			return file.getName().substring(index);
 		}
 		return null;
-	}
-
-	public static void copyFile(InputStream source, File dest) throws IOException {
-		if (!dest.exists()) {
-			dest.createNewFile();
-		}
-		OutputStream out = null;
-		try {
-			out = new FileOutputStream(dest);
-
-			// Transfer bytes from in to out
-			byte[] buf = new byte[1024];
-			int len;
-			while ((len = source.read(buf)) > 0) {
-				out.write(buf, 0, len);
-			}
-		} finally {
-			if (source != null) {
-				source.close();
-			}
-			if (out != null) {
-				out.close();
-			}
-		}
-	}
-	
-	public static void copyFile(File source, File dest) throws IOException {
-		try {
-			FileInputStream in = new FileInputStream(source);
-			copyFile(in, dest);
-		} catch (Exception e) {
-			
-		}
 	}
 
 	public static Rectangle getImageSize(IFile item) {
@@ -441,7 +407,7 @@ public class ImageUtility {
 				File tmpFile = new File(tmpFilename);
 				tmpFile.deleteOnExit();
 				try {
-					copyFile(item.getInputStream(), tmpFile);
+					PathUtil.copyFile(item.getInputStream(), tmpFile);
 				} catch (IOException e) {
 					e.printStackTrace();
 					return null;
@@ -539,7 +505,7 @@ public class ImageUtility {
 
 		IplImage image_source;
 		try {
-			copyFile(item.getInputStream(), tmpFile);
+			PathUtil.copyFile(item.getInputStream(), tmpFile);
 			image_source = cvLoadImage(tmpFile.getPath());
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -22,59 +22,64 @@ package com.github.nirvash.svgEpub.util;
 
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Runtime helper methods.
  * @author robmckinnon@users.sourceforge.net
  */
 public class RuntimeUtility {
+    public static class ProcessStreamReadThread extends Thread {
+    	private final BufferedReader br;
+    	private final List<String> streamMessageList = new ArrayList<String>();
 
-    public static void execute(String command) throws IOException, InterruptedException {
-        Runtime runtime = Runtime.getRuntime();
-        Process process = runtime.exec(command);
-        waitForCompletion(process);
+		public ProcessStreamReadThread(InputStream is) {
+			br = new BufferedReader(new InputStreamReader(is));
+		}
+	
+	   @Override
+       public void run() {
+           try {
+               readStream();
+           } catch (IOException e) {
+               throw new RuntimeException(e);
+           }
+       }
+	   
+	   private void readStream() throws IOException {
+           try {
+               while (true) {
+                   String line = br.readLine();
+                   if (null == line) {
+                       break;
+                   }
+                   streamMessageList.add(line);
+               }
+           } finally {
+               br.close();
+           }
+       }
+	   
+	   public List<String> getStreamMessageList() {
+           return streamMessageList;
+       }
+	}
+
+	public static int execute(ArrayList<String> command) throws IOException, InterruptedException {
+    	ProcessBuilder pb = new ProcessBuilder(command);
+    	pb.redirectErrorStream(true);
+    	Process process = pb.start();
+
+    	ProcessStreamReadThread stdoutThread = new ProcessStreamReadThread(process.getInputStream());
+    	ProcessStreamReadThread stderrThread = new ProcessStreamReadThread(process.getErrorStream());
+    	stdoutThread.start();
+    	stderrThread.start();
+    	int ret = process.waitFor();
+    	stdoutThread.join();
+    	stderrThread.join();
+		return ret;
     }
-
-    public static BufferedReader execute(String[] commandArray) throws IOException, InterruptedException {
-        Runtime runtime = Runtime.getRuntime();
-        Process process = runtime.exec(commandArray, null, null);
-        waitForCompletion(process);
-        return new BufferedReader(new InputStreamReader(process.getInputStream()));
-    }
-
-    private static void waitForCompletion(Process process) throws InterruptedException, IOException {
-        BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-        process.waitFor();
-        if(errorReader.ready()) {
-            StringBuffer buffer = new StringBuffer(errorReader.readLine());
-            while(errorReader.ready()) {
-                buffer.append('\n' + errorReader.readLine());
-            }
-            errorReader.close();
-            String message = buffer.toString();
-            if(message.indexOf("premature end of file") == -1) {
-                throw new RuntimeException(message);
-            }
-        }
-    }
-
-    public static String getOutput(String[] commandArray) throws IOException, InterruptedException {
-        Runtime runtime = Runtime.getRuntime();
-        Process process = runtime.exec(commandArray, null, null);
-
-        BufferedReader outputReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-        process.waitFor();
-        StringBuffer buffer = new StringBuffer();
-
-        if(outputReader.ready()) {
-            buffer.append(outputReader.readLine());
-            while(outputReader.ready()) {
-                buffer.append('\n' + outputReader.readLine());
-            }
-        }
-
-        return buffer.toString();
-    }
-
 }

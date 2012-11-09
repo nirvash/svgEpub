@@ -454,6 +454,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		monitor.setMillisToDecideToPopup(0);
 		monitor.setMillisToPopup(0);
 		epubWriter.setMonitor(monitor);
+		epubWriter.setReflow(jCheckBoxReflow.isSelected());
 		epubWriter.start();		
 	}
 

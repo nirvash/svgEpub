@@ -1,6 +1,11 @@
 package com.github.nirvash.svgEpub.util;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.TreeSet;
 
 
@@ -56,7 +61,7 @@ public class PathUtil {
 	}
 
 	public static String getTmpDirectory() {
-		String path = System.getProperty("java.io.tmpdir") + "/svgEpub/";
+		String path = System.getProperty("java.io.tmpdir") + "svgEpub\\";
 		File tmp = new File(path);
 		if (!tmp.exists()) {
 			tmp.mkdirs();
@@ -83,6 +88,39 @@ public class PathUtil {
 
 	public static boolean isExist(String path) {
 		File file = new File(path);
-		return file.isFile() && file.canExecute() && file.exists();
+		return file.exists();
+	}
+
+	public static void copyFile(File source, File dest) throws IOException {
+		try {
+			FileInputStream in = new FileInputStream(source);
+			PathUtil.copyFile(in, dest);
+		} catch (Exception e) {
+			
+		}
+	}
+
+	public static void copyFile(InputStream source, File dest) throws IOException {
+		if (!dest.exists()) {
+			dest.createNewFile();
+		}
+		OutputStream out = null;
+		try {
+			out = new FileOutputStream(dest);
+	
+			// Transfer bytes from in to out
+			byte[] buf = new byte[1024];
+			int len;
+			while ((len = source.read(buf)) > 0) {
+				out.write(buf, 0, len);
+			}
+		} finally {
+			if (source != null) {
+				source.close();
+			}
+			if (out != null) {
+				out.close();
+			}
+		}
 	}
 }

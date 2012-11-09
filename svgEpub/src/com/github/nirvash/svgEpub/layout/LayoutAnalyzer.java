@@ -2,8 +2,6 @@ package com.github.nirvash.svgEpub.layout;
 
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacpp.FloatPointer;
-import com.googlecode.javacv.cpp.opencv_core.CvArr;
-import com.googlecode.javacv.cpp.opencv_core.CvMat;
 import com.googlecode.javacv.cpp.opencv_core.*;
 import com.googlecode.javacv.cpp.opencv_nonfree.*;
 import com.googlecode.javacv.cpp.opencv_features2d.*;
@@ -15,6 +13,7 @@ import static com.googlecode.javacv.cpp.opencv_flann.*;
 import static com.googlecode.javacv.cpp.opencv_highgui.*;
 import static com.googlecode.javacv.cpp.opencv_features2d.*;
 
+import java.awt.FontFormatException;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.io.File;
@@ -41,16 +40,22 @@ import com.github.nirvash.svgEpub.Epub;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.util.ImageUtility;
 import com.github.nirvash.svgEpub.util.PathUtil;
+import com.github.nirvash.svgEpub.util.RuntimeUtility;
 
 
 public class LayoutAnalyzer {
-	public static void createFont(InputStream in) {
-		File file = new File(PathUtil.getTmpDirectory()+"/tmpimage");
+	static String fontForgePath = "";
+	public static void setFontForgePath(String path) {
+		fontForgePath = path;
+	}
+	
+	public static File createFont(InputStream in, int page) {
+		File file = new File(PathUtil.getTmpDirectory()+"work.png");
+		file.deleteOnExit();
 		try {
-			ImageUtility.copyFile(in, file);
+			PathUtil.copyFile(in, file);
 			in.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
@@ -58,8 +63,89 @@ public class LayoutAnalyzer {
 		ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
 
 		analyzePageLayout(image_source, elements);
-		learnGlyphs(image_source, elements);
+//		learnGlyphs(image_source, elements);
+		String fontPath = PathUtil.getTmpDirectory()+"work.ttf";
+		File fontFile = saveFont(image_source, elements, fontPath);
+		fontFile.deleteOnExit();
+		
 		cvReleaseImage(image_source);
+		return fontFile;
+	}
+
+	private static File saveFont(IplImage image_source,
+			ArrayList<LayoutElement> elements, String fontPath) {
+		double scale = 1.0;
+		IplImage image_binary = cvCreateImage( image_source.cvSize(), IPL_DEPTH_8U, 1);
+		ImageUtility.binalize(image_source, image_binary, false);
+		
+		String tmpdir = PathUtil.getTmpDirectory();
+		String inputPath = tmpdir + "font\\";
+		File inputFile = new File(inputPath);
+		if (inputFile.exists()) inputFile.delete();
+		inputFile.mkdirs();
+
+		int index = 0x3400;
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			for (LayoutElement r : le.elements) {
+				cvSetImageROI(image_binary, toCvRect(r.rect, scale));
+				String filename = String.format("%su%04x.bmp", tmpdir, index);
+				cvSaveImage(filename, image_binary);
+				
+				File tmpFile = new File(filename);
+				File svgFrom = Epub.convertToSvgFromImage(new FileItem(tmpFile, null));
+				String svgPath = String.format("%su%04x.svg", inputPath, index);
+				File svgTo = new File(svgPath);
+				if (svgTo.exists()) svgTo.delete();
+				svgFrom.renameTo(svgTo);
+				tmpFile.delete();
+				svgTo.deleteOnExit();
+				index++;
+			}
+		}
+		cvReleaseImage(image_binary);
+		
+		File batchFile = new File("fontforge-script.bat");
+		if (!batchFile.exists()) return null;
+		
+		File fontforge = new File(fontForgePath);
+		if (fontforge == null || !fontforge.exists()) {
+			return null;
+		}
+		
+		File fontFile = new File(fontPath);
+		fontFile.deleteOnExit();
+		String scriptPath = getScriptPath();
+		String workdir = PathUtil.getTmpDirectory();
+		inputPath = "font\\u^*.svg"; // escape for command propt.
+
+		ArrayList<String> commands = new ArrayList<String>();
+		commands.add(String.format("\"%s\"", batchFile.getAbsoluteFile()));
+		commands.add(String.format("\"%s\\\"", fontforge.getAbsoluteFile()));
+		commands.add(String.format("\"%s\"", workdir));
+		commands.add(String.format("\"%s\"", scriptPath));
+		commands.add(String.format("\"%s\"", fontPath));
+		commands.add(String.format("\"%s\"", inputPath));
+
+		try {
+			int ret = RuntimeUtility.execute(commands);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return fontFile;
+	}
+
+	private static String getScriptPath() {
+		File script = new File("import.pe");
+		try {
+			if (!script.exists()) {
+				ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+				PathUtil.copyFile(classLoader.getResourceAsStream("resources/import.pe"), script);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return script.getAbsolutePath();
 	}
 
 	public static File analyzePageLayout(File file) {

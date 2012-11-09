@@ -242,7 +242,7 @@ public class ListItem implements IFile {
 				tmpFile.deleteOnExit();
 				InputStream in = getInputStream();
 				try {
-					ImageUtility.copyFile(in, tmpFile);
+					PathUtil.copyFile(in, tmpFile);
 					in.close();
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -267,7 +267,7 @@ public class ListItem implements IFile {
 					tmpFile.deleteOnExit();
 					InputStream in = getInputStream();
 					try {
-						ImageUtility.copyFile(in, tmpFile);
+						PathUtil.copyFile(in, tmpFile);
 						in.close();
 					} catch (IOException e) {
 						e.printStackTrace();

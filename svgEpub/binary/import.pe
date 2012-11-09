@@ -1,0 +1,58 @@
+#!/usr/bin/fontforge -script
+#
+# uXXXX.svg import -> test.sfd output
+
+_ttfname = $1
+_importfile = $2
+
+# ----------------------------------------
+# new data
+
+New()
+Reencode("unicode")
+
+SelectAll()
+SetGlyphChanged(0)
+
+# ----------------------------------------
+# .svg import
+
+$trace=1
+Import(_importfile,0,2)
+$trace=0
+
+#set_fontnames()
+#set_bearings()
+#set_kernings()
+
+# ----------------------------------------
+# edit
+
+SelectAll()
+RoundToInt()
+
+SelectAll()
+RemoveOverlap()
+
+SelectAll()
+Simplify()
+Simplify()
+Simplify()
+
+# ----------------------------------------
+# save
+
+Save(_ttfname:r + ".sfd")
+Close()
+
+# ----------------------------------------
+# save ttf
+
+Open(_ttfname:r + ".sfd")
+
+Generate(_ttfname, "", 0x94)
+# Generate(_ttfname, "", 0x84)
+
+Close()
+
+Quit()

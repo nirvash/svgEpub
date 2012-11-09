@@ -19,6 +19,7 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipOutputStream;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -35,6 +36,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 
 import com.github.nirvash.svgEpub.clip.ClipListItem;
+import com.github.nirvash.svgEpub.layout.LayoutAnalyzer;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.list.IFile;
 import com.github.nirvash.svgEpub.list.ListItem;
@@ -46,6 +48,7 @@ import com.github.nirvash.svgEpub.util.RuntimeUtility;
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
+import nl.siegmann.epublib.epub.EpubReader;
 import nl.siegmann.epublib.epub.EpubWriter;
 import nl.siegmann.epublib.util.StringUtil;
 
@@ -58,6 +61,7 @@ public class Epub {
 	private String authorFileAs;
 	private String path;
 	private String outputFilename;
+	private boolean isReflow = false;
 	private ProgressMonitor monitor;
 	static private CustomProperties properties;
 	
@@ -95,14 +99,21 @@ public class Epub {
 			book.getMetadata().addAuthor(auth);
 			book.getMetadata().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			book.getSpine().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
-			if (!createPages(book, fileList, monitor)) {
-				return;
-			}
 			
 			EpubWriter epubWriter = new EpubWriter();
 			FileOutputStream out =  new FileOutputStream(path);
-			epubWriter.write(book, out);
+			ZipOutputStream zipOut = new ZipOutputStream(out);
+			
+			if (!createPages(book, fileList, monitor)) {
+				zipOut.close();
+				out.close();
+				return;
+			}
+			
+//			EpubWriter epubWriter = new EpubWriter();
+			epubWriter.write(book, zipOut);
 			monitor.setProgress(monitor.getMaximum());
+			zipOut.close();
 			out.close();
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -143,13 +154,28 @@ public class Epub {
 				page = createSvgPage(book, page, template, item);
 			} else if (PathUtil.isRasterFile(item.getFilename())) {
 				if (item.isConvertToSVG()) {
-					File svgFile = convertToSvgFromImage(item);
-					if (svgFile != null) {
-						IFile svgItem = new FileItem(svgFile, item.getClipRect());
-						page = createSvgPage(book, page, template, svgItem);
-						svgFile.delete();
+					if (isReflow) {
+						InputStream in = item.getInputStream();
+						LayoutAnalyzer.setFontForgePath(properties.getProperty("fontforge_path", ""));
+						File fontFile = LayoutAnalyzer.createFont(in, page);
+						in.close();
+						String fontPath = String.format("font/font%d.ttf", page);
+						if (fontFile.exists()) {
+							FileInputStream fontStream = new FileInputStream(fontFile);
+							book.getResources().add(new Resource(fontStream, fontPath));
+							page = createReflowPage(book, page, template, fontPath);
+						} else {
+							page = createImagePage(book, page, template, item);
+						}
 					} else {
-						page = createImagePage(book, page, template, item);
+						File svgFile = convertToSvgFromImage(item);
+						if (svgFile != null) {
+							IFile svgItem = new FileItem(svgFile, item.getClipRect());
+							page = createSvgPage(book, page, template, svgItem);
+							svgFile.delete();
+						} else {
+							page = createImagePage(book, page, template, item);
+						}
 					}
 				} else {
 					page = createImagePage(book, page, template, item);
@@ -158,7 +184,8 @@ public class Epub {
 		}	
 		return true;
 	}
-	
+
+
 	static public File convertToSvgFromImage(IFile item) {
 		File bitmapFile = null;
 		File pnmFile = null;
@@ -226,13 +253,19 @@ public class Epub {
 				return null;
 			}
 		}
+		ArrayList<String> commands = new ArrayList<String>();
+		commands.add(String.format("\"%s\"", mkbitmap.getPath()));
+		commands.add(String.format("\"%s\"", file.getPath()));
+		commands.add("-o");
+		commands.add(String.format("\"%s\"", pnmFile));
+		String mkbitmapOpt = properties.getProperty("mkbitmap_option");
+		String[] opts = mkbitmapOpt.split(" ");
+		for (String opt : opts) {
+			commands.add(opt);
+		}
 
-		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" " + properties.getProperty("mkbitmap_option"), 
-				mkbitmap.getPath(), file.getPath(), pnmFile
-				);
 		try {
-			RuntimeUtility.execute(command);
+			int ret = RuntimeUtility.execute(commands);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -264,13 +297,23 @@ public class Epub {
 			return null;
 		}
 		
-		String command = String.format(
-				"\"%s\" \"%s\" -o \"%s\" -W %dpt -H %dpt %s", 
-				potrace.getPath(), file.getPath(), svgFile, imageSize.width, imageSize.height, 
-				properties.getProperty("potrace_option")
-				);
+		ArrayList<String> commands = new ArrayList<String>();
+		commands.add(String.format("\"%s\"", potrace.getPath()));
+		commands.add(String.format("\"%s\"", file.getPath()));
+		commands.add("-o");
+		commands.add(String.format("\"%s\"", svgFile));
+		commands.add("-W");
+		commands.add(String.format("%dpt", imageSize.width));
+		commands.add("-H");
+		commands.add(String.format("%dpt", imageSize.height));
+		String potraceOpt = properties.getProperty("potrace_option");
+		String[] opts = potraceOpt.split(" ");
+		for (String opt : opts) {
+			commands.add(opt);
+		}
+	
 		try {
-			RuntimeUtility.execute(command);
+			int ret = RuntimeUtility.execute(commands);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -291,6 +334,36 @@ public class Epub {
 		} catch (Exception e) {
 			return null;
 		}
+	}
+	
+	
+	private int createReflowPage(Book book, int page, String template, String fontPath) {
+		try {
+			String pageName = String.format("page_%04d", page);
+			String pageFile = pageName + ".xhtml";
+
+			String css = String.format("body { font-family: font%d; }\n", page);
+			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf')}", page, page);
+			css += "html{writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
+
+			String body = "";
+			for (int codePoint=0x3400; codePoint<0x3400+300; codePoint++) {
+				body += new String(Character.toChars(codePoint));
+			}
+			
+			String html = template.replaceAll("%%CSS%%", css);
+			html = html.replaceAll("%%BODY%%", body);
+			
+			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+			book.addSection(pageName, new Resource(bi, pageFile));
+			bi.close();
+
+
+	    	page++;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return page;
 	}
 
 	private int createImagePage(Book book, int page, String template, IFile item)  {
@@ -508,5 +581,9 @@ public class Epub {
 		} catch (Exception e) {
 			this.title = dirName;
 		}		
+	}
+
+	public void setReflow(boolean isReflow) {
+		this.isReflow = isReflow;
 	}
 }
