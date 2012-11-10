@@ -356,10 +356,12 @@ public class Epub {
 			for (LayoutElement le: elements) {
 				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
 					for (LayoutElement ch : le.getChildren()) {
-						body.append(Character.toChars(ch.getCodePoint()));
+						body.append(ch.getText());
+					}
+					if (le.hasLF()) {
+						body.append("<br/>\n");
 					}
 				}
-				body.append("<br/>\n");
 			}
 			
 			String html = template.replaceAll("%%CSS%%", css);

@@ -27,12 +27,16 @@ public class LayoutElement {
 		public static final int TYPE_TEXT_VERTICAL = 2;
 		public static final int TYPE_TEXT_HORIZONTAL = 3;
 		public static final int TYPE_RUBY = 4;
+		public static final int TYPE_CHARACTER = 5;
+		public static final int TYPE_LF = 6;
 
 		int type = TYPE_UNKNOWN;
 		int id = 0;
 		Rectangle rect;
 		List<LayoutElement> elements = new ArrayList<LayoutElement>();
 		int codePoint = 0;
+		String text = "";
+		boolean hasLF = false;
 
 		public LayoutElement(int id) {
 			this.id = id;;
@@ -358,6 +362,14 @@ public class LayoutElement {
 		public double[] getVector() {
 			return vector;
 		}
+		
+		public void setText(String text) {
+			this.text = text;
+		}
+		
+		public String getText() {
+			return text;
+		}
 
 		public void setCodePoint(int codePoint) {
 			this.codePoint = codePoint;	
@@ -369,5 +381,13 @@ public class LayoutElement {
 
 		public List<LayoutElement> getChildren() {
 			return this.elements;
+		}
+
+		public void setLF(boolean hasLF) {
+			this.hasLF = hasLF;
+		}
+
+		public boolean hasLF() {
+			return hasLF;
 		}
 	}

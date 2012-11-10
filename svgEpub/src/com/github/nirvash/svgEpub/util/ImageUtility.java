@@ -531,20 +531,4 @@ public class ImageUtility {
 		
 		return isColorImage ? false : !isComplicatedIllust;
 	}
-	
-	public static class RectComparator implements Comparator<LayoutElement> {
-		@Override
-		public int compare(LayoutElement cr1, LayoutElement cr2) {
-			int l1 = cr1.x();
-			int l2 = cr2.x();
-			int r1 = cr1.x() + cr1.width();
-			int r2 = cr2.x() + cr2.width();
-			if (l1 > r2 || r1 < l2) {
-				return r2 - r1;
-			}
-			int t1 = cr1.y();
-			int t2 = cr2.y();
-			return t1 - t2;
-		}
-	}
 }

@@ -9,6 +9,12 @@ _importfile = $2
 # new data
 
 New()
+
+# .notdef作成
+Select(0x0000)
+SetWidth(1000)
+SetGlyphName(".notdef")
+
 Reencode("unicode")
 
 SelectAll()
@@ -29,15 +35,22 @@ Import(_importfile,0,2)
 # ----------------------------------------
 # edit
 
-# Save(_ttfname:r + "2.sfd")
+# 半角スペース作成
+Select(0u0020)
+SetWidth(500)
+
+# 全角スペース作成
+Select(0u3000)
+SetWidth(1000)
+
+
+
 
 SelectAll()
 RoundToInt()
 
-SelectAll()
 RemoveOverlap()
 
-SelectAll()
 Simplify()
 Simplify()
 Simplify()
