@@ -32,7 +32,7 @@ public class LayoutElement {
 
 		int type = TYPE_UNKNOWN;
 		int id = 0;
-		Rectangle rect;
+		public Rectangle rect;
 		List<LayoutElement> elements = new ArrayList<LayoutElement>();
 		int codePoint = 0;
 		String text = "";

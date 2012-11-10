@@ -56,27 +56,16 @@ public class LayoutAnalyzer {
 		fontForgePath = path;
 	}
 	
-	public static File createFont(InputStream in, ArrayList<LayoutElement> elements, int page) {
+	public static File createFont(IplImage image_source, IplImage image_binary, ArrayList<LayoutElement> elements, int page) {
 		Profile.setLaptime("createFont");
-		File file = new File(PathUtil.getTmpDirectory()+"work.png");
-		file.deleteOnExit();
-		try {
-			PathUtil.copyFile(in, file);
-			in.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		IplImage image_source = cvLoadImage(file.getPath());
 
-		analyzePageLayout(image_source, elements);
+		analyzePageLayout(image_source, image_binary, elements);
 //		learnGlyphs(image_source, elements);
 		String fontPath = PathUtil.getTmpDirectory()+"work.ttf";
 		Profile.setLaptime("saveFont");
 		File fontFile = saveFont(image_source, elements, fontPath);
 		fontFile.deleteOnExit();
 		
-		cvReleaseImage(image_source);
 		Profile.setLaptime("createFont (end)");
 		return fontFile;
 	}
@@ -186,17 +175,22 @@ public class LayoutAnalyzer {
 		IplImage image_source = cvLoadImage(file.getPath());
 		ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
 
-		analyzePageLayout(image_source, elements);
+		double scale = 1;
+		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
+		IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
+
+		analyzePageLayout(image_source, image_binary, elements);
 		drawPageLayout(image_source, elements, 2, CvScalar.MAGENTA, CvScalar.CYAN);
 		
 		cvSaveImage(file.getPath(), image_source);
 		cvReleaseImage(image_source);
+		cvReleaseImage(image_binary);
 		return file;
 	}
 	
-	public static void analyzePageLayout(IplImage image_source, ArrayList<LayoutElement> elements) {
+	public static void analyzePageLayout(IplImage image_source, IplImage image_binary, ArrayList<LayoutElement> elements) {
 		Profile.setLaptime("analyzePageLayout (start)");
-		if (LayoutAnalyzer.getLineElement(image_source, elements, false, false)) {
+		if (LayoutAnalyzer.getLineElement(image_source, image_binary, elements, false, false)) {
 			/*
 				IplImage tmp = cvCloneImage(image_source);
 				double angle = calcSkew(group, tmp);
@@ -209,7 +203,7 @@ public class LayoutAnalyzer {
 			LayoutAnalyzer.deskew(image_source, angle, new CvRect(0, 0, image_source.width(), image_source.height()));
 
 			Profile.setLaptime("getLineElement");
-			LayoutAnalyzer.getLineElement(image_source, elements, true, true);
+			LayoutAnalyzer.getLineElement(image_source, image_binary, elements, true, true);
 			Profile.setLaptime("analyzeLayout");
 			LayoutAnalyzer.analyzeLayout(image_source, elements);
 		}
@@ -1301,11 +1295,8 @@ public class LayoutAnalyzer {
 		cvWarpAffine(image, image, rotMat, CV_INTER_LINEAR + CV_WARP_FILL_OUTLIERS, cvScalarAll(255));
 	}
 
-	static boolean getLineElement(IplImage image_source,
+	static boolean getLineElement(IplImage image_source, IplImage image_binary,
 			ArrayList<LayoutElement> group, boolean doAdjust, boolean drawResult) {
-		double scale = 1;
-		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
-		IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
 		//		cvSaveImage("test_src.png", image_source);
 
 		ImageUtility.binalize(image_source, image_binary, true);
@@ -1318,6 +1309,7 @@ public class LayoutAnalyzer {
 		//		drawContours(image_source, contours, storage, CvScalar.RED);
 
 		List<LayoutElement> rects = new ArrayList<LayoutElement>();
+		double scale = image_binary.width() / image_source.width();
 		getRects(contours, rects, scale);
 
 		// Union intersected rects
@@ -1336,7 +1328,6 @@ public class LayoutAnalyzer {
 		getLineElements(rects, group, image_source, doAdjust);
 
 		storage.release();
-		cvReleaseImage(image_binary);
 		return true;
 	}
 

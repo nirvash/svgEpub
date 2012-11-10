@@ -21,6 +21,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipOutputStream;
 
+import static com.googlecode.javacv.cpp.opencv_core.*;
+import static com.googlecode.javacv.cpp.opencv_imgproc.*;
+import static com.googlecode.javacv.cpp.opencv_flann.*;
+import static com.googlecode.javacv.cpp.opencv_highgui.*;
+import static com.googlecode.javacv.cpp.opencv_features2d.*;
+
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
@@ -45,6 +51,8 @@ import com.github.nirvash.svgEpub.ui.svgEpubMainPanel;
 import com.github.nirvash.svgEpub.util.ImageUtility;
 import com.github.nirvash.svgEpub.util.PathUtil;
 import com.github.nirvash.svgEpub.util.RuntimeUtility;
+import com.googlecode.javacv.cpp.opencv_core.CvSize;
+import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
@@ -160,16 +168,33 @@ public class Epub {
 
 						InputStream in = item.getInputStream();
 						LayoutAnalyzer.setFontForgePath(properties.getProperty("fontforge_path", ""));
-						File fontFile = LayoutAnalyzer.createFont(in, elements, page);
+						
+						File file = new File(PathUtil.getTmpDirectory()+"work.png");
+						file.deleteOnExit();
+						try {
+							PathUtil.copyFile(in, file);
+							in.close();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						
+						IplImage image_source = cvLoadImage(file.getPath());
+						double scale = 1;
+						CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
+						IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
+						
+						File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, elements, page);
 						in.close();
 						String fontPath = String.format("font/font%d.ttf", page);
 						if (fontFile.exists()) {
 							FileInputStream fontStream = new FileInputStream(fontFile);
 							book.getResources().add(new Resource(fontStream, fontPath));
-							page = createReflowPage(book, page, template, fontPath, elements);
+							page = createReflowPage(book, page, template, fontPath, elements, image_source);
 						} else {
 							page = createImagePage(book, page, template, item);
 						}
+						cvReleaseImage(image_source);
+						cvReleaseImage(image_binary);
 					} else {
 						File svgFile = convertToSvgFromImage(item);
 						if (svgFile != null) {
@@ -343,15 +368,17 @@ public class Epub {
 	}
 	
 	
-	private int createReflowPage(Book book, int page, String template, String fontPath, ArrayList<LayoutElement> elements) {
+	private int createReflowPage(Book book, int page, String template, String fontPath, 
+			ArrayList<LayoutElement> elements, IplImage image_source) {
 		try {
 			String pageName = String.format("page_%04d", page);
 			String pageFile = pageName + ".xhtml";
 
-			String css = String.format("body { font-family: font%d; }\n", page);
-			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf')}", page, page);
-			css += "html{writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
+			String css = String.format("body { font-family: font%d; line-height: 1.5em; }\n", page);
+			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf') }\n", page, page);
+			css += "html { writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
 
+			int imageIndex = 0;
 			StringBuffer body = new StringBuffer();
 			for (LayoutElement le: elements) {
 				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
@@ -361,6 +388,20 @@ public class Epub {
 					if (le.hasLF()) {
 						body.append("<br/>\n");
 					}
+				} else if (le.getType() == LayoutElement.TYPE_IMAGE) {
+					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1));
+					String imageFileName = String.format("image_%04d_%02d.png", page, imageIndex);
+					String imageFileURI = "images/" + imageFileName;
+					String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
+					cvSaveImage(imageFilePath, image_source);
+					
+					FileInputStream in = new FileInputStream(imageFilePath);
+					book.getResources().add(new Resource(in, imageFileURI));
+					in.close(); // Can not close stream here??
+					
+					imageIndex++;
+					String height = le.height() > 754 ? "100%" : Integer.toString(le.height());
+					body.append(String.format("<img src=\"%s\" height=\"%s\"/><br/><br/>", imageFileURI, height));
 				}
 			}
 			
