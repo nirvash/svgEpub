@@ -15,11 +15,12 @@ SelectAll()
 SetGlyphChanged(0)
 
 # ----------------------------------------
-# .svg import
+# glyph import
 
-$trace=1
+#$trace=1
 Import(_importfile,0,2)
-$trace=0
+#$trace=0
+
 
 #set_fontnames()
 #set_bearings()
@@ -27,6 +28,8 @@ $trace=0
 
 # ----------------------------------------
 # edit
+
+# Save(_ttfname:r + "2.sfd")
 
 SelectAll()
 RoundToInt()
@@ -42,13 +45,13 @@ Simplify()
 # ----------------------------------------
 # save
 
-Save(_ttfname:r + ".sfd")
-Close()
+#Save(_ttfname:r + ".sfd")
+#Close()
 
 # ----------------------------------------
 # save ttf
 
-Open(_ttfname:r + ".sfd")
+#Open(_ttfname:r + ".sfd")
 
 Generate(_ttfname, "", 0x94)
 # Generate(_ttfname, "", 0x84)

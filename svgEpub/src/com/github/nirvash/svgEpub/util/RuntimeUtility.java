@@ -66,9 +66,30 @@ public class RuntimeUtility {
 	   public List<String> getStreamMessageList() {
            return streamMessageList;
        }
-	}
+	   
+	   @Override
+	   public String toString() {
+		   StringBuffer buf = new StringBuffer();
+		   for (String mes : streamMessageList) {
+			   buf.append(mes);
+			   buf.append("\n");
+		   }
+		   return buf.toString();
+	   }
 
+		public void getOutput(StringBuffer msg) {
+			   for (String line : streamMessageList) {
+				  msg.append(line);
+				  msg.append("\n");
+			   }
+		}
+	}
+    
 	public static int execute(ArrayList<String> command) throws IOException, InterruptedException {
+		return execute(command, null);
+	}
+	
+	public static int execute(ArrayList<String> command, StringBuffer msg) throws IOException, InterruptedException {
     	ProcessBuilder pb = new ProcessBuilder(command);
     	pb.redirectErrorStream(true);
     	Process process = pb.start();
@@ -80,6 +101,10 @@ public class RuntimeUtility {
     	int ret = process.waitFor();
     	stdoutThread.join();
     	stderrThread.join();
+    	if (msg != null) {
+    		stdoutThread.getOutput(msg);
+    		stderrThread.getOutput(msg);
+    	}
 		return ret;
     }
 }

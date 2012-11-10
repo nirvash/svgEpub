@@ -149,7 +149,7 @@ public class ImageUtility {
 				
 		IplImage image_edge   = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
 		
-		cvResize(image_grey, image_target, CV_INTER_LANCZOS4);
+		cvResize(image_grey, image_target, CV_INTER_LINEAR);
 
 		try {
 			if (!isColorImage) {

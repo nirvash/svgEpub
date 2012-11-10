@@ -14,8 +14,10 @@ import static com.googlecode.javacv.cpp.opencv_highgui.*;
 import static com.googlecode.javacv.cpp.opencv_features2d.*;
 
 import java.awt.FontFormatException;
+import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +28,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
+import javax.imageio.ImageIO;
 
 import jknnl.kohonen.WTALearningFunction;
 import jknnl.learningFactorFunctional.ConstantFunctionalFactor;
@@ -40,6 +44,7 @@ import com.github.nirvash.svgEpub.Epub;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.util.ImageUtility;
 import com.github.nirvash.svgEpub.util.PathUtil;
+import com.github.nirvash.svgEpub.util.Profile;
 import com.github.nirvash.svgEpub.util.RuntimeUtility;
 
 
@@ -49,7 +54,8 @@ public class LayoutAnalyzer {
 		fontForgePath = path;
 	}
 	
-	public static File createFont(InputStream in, int page) {
+	public static File createFont(InputStream in, ArrayList<LayoutElement> elements, int page) {
+		Profile.setLaptime("createFont");
 		File file = new File(PathUtil.getTmpDirectory()+"work.png");
 		file.deleteOnExit();
 		try {
@@ -60,22 +66,27 @@ public class LayoutAnalyzer {
 		}
 		
 		IplImage image_source = cvLoadImage(file.getPath());
-		ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
 
 		analyzePageLayout(image_source, elements);
 //		learnGlyphs(image_source, elements);
 		String fontPath = PathUtil.getTmpDirectory()+"work.ttf";
+		Profile.setLaptime("saveFont");
 		File fontFile = saveFont(image_source, elements, fontPath);
 		fontFile.deleteOnExit();
 		
 		cvReleaseImage(image_source);
+		Profile.setLaptime("createFont (end)");
 		return fontFile;
 	}
 
 	private static File saveFont(IplImage image_source,
 			ArrayList<LayoutElement> elements, String fontPath) {
-		double scale = 1.0;
-		IplImage image_binary = cvCreateImage( image_source.cvSize(), IPL_DEPTH_8U, 1);
+		String ext_in = "bmp";
+		String ext_out = "svg";
+		Profile.setLaptime("binalize");
+		double scale = 5.0;
+		CvSize targetSize = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
+		IplImage image_binary = cvCreateImage( targetSize, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
 		
 		String tmpdir = PathUtil.getTmpDirectory();
@@ -84,27 +95,44 @@ public class LayoutAnalyzer {
 		if (inputFile.exists()) inputFile.delete();
 		inputFile.mkdirs();
 
+		Profile.setLaptime("potrace");
 		int index = 0x3400;
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			for (LayoutElement r : le.elements) {
-				cvSetImageROI(image_binary, toCvRect(r.rect, scale));
-				String filename = String.format("%su%04x.bmp", tmpdir, index);
-				cvSaveImage(filename, image_binary);
+				CvRect rect = toCvRect(r.rect, scale);
+				cvSetImageROI(image_binary, rect);
+				CvSize size = new CvSize(rect.width(), rect.height());
+				IplImage image_char = cvCreateImage(size, IPL_DEPTH_8U, 1);
+				cvCopy(image_binary, image_char);
+
+//				cvSaveImage(filename, image_binary);
+				BufferedImage bImage = image_char.getBufferedImage();
+				BufferedImage bImageBinary = new BufferedImage(bImage.getWidth(), bImage.getHeight(), BufferedImage.TYPE_BYTE_BINARY);
+				Graphics2D g = bImageBinary.createGraphics();
+				g.drawImage(bImage, 0, 0, null);
+
+				String charBitmapFilename = String.format("%su%04x.%s", inputPath, index, ext_in);
+				File charBitmapFile = new File(charBitmapFilename);
+				try {
+					ImageIO.write(bImageBinary, ext_in, charBitmapFile);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				cvReleaseImage(image_char);
 				
-				File tmpFile = new File(filename);
-				File svgFrom = Epub.convertToSvgFromImage(new FileItem(tmpFile, null));
-				String svgPath = String.format("%su%04x.svg", inputPath, index);
-				File svgTo = new File(svgPath);
-				if (svgTo.exists()) svgTo.delete();
-				svgFrom.renameTo(svgTo);
-				tmpFile.delete();
-				svgTo.deleteOnExit();
+				String svgFilename = String.format("%su%04x.%s", inputPath, index, ext_out);
+				File svgFile = Epub.convertToSvg(charBitmapFile, svgFilename, new Rectangle(bImage.getWidth(), bImage.getHeight()));
+				svgFile.deleteOnExit();
+				charBitmapFile.delete();
+
+				r.setCodePoint(index);
 				index++;
 			}
 		}
-		cvReleaseImage(image_binary);
 		
+		cvReleaseImage(image_binary);
+		Profile.setLaptime("fontforge");
 		File batchFile = new File("fontforge-script.bat");
 		if (!batchFile.exists()) return null;
 		
@@ -117,7 +145,7 @@ public class LayoutAnalyzer {
 		fontFile.deleteOnExit();
 		String scriptPath = getScriptPath();
 		String workdir = PathUtil.getTmpDirectory();
-		inputPath = "font\\u^*.svg"; // escape for command propt.
+		inputPath = "font\\u^*." + ext_out; // escape for command propt.
 
 		ArrayList<String> commands = new ArrayList<String>();
 		commands.add(String.format("\"%s\"", batchFile.getAbsoluteFile()));
@@ -128,7 +156,9 @@ public class LayoutAnalyzer {
 		commands.add(String.format("\"%s\"", inputPath));
 
 		try {
-			int ret = RuntimeUtility.execute(commands);
+			StringBuffer msg = new StringBuffer();
+			int ret = RuntimeUtility.execute(commands, msg);
+			System.out.print(msg);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -161,6 +191,7 @@ public class LayoutAnalyzer {
 	}
 	
 	public static void analyzePageLayout(IplImage image_source, ArrayList<LayoutElement> elements) {
+		Profile.setLaptime("analyzePageLayout (start)");
 		if (LayoutAnalyzer.getLineElement(image_source, elements, false, false)) {
 			/*
 				IplImage tmp = cvCloneImage(image_source);
@@ -168,12 +199,17 @@ public class LayoutAnalyzer {
 				cvSaveImage("test_line.png", tmp);
 				cvReleaseImage(tmp);
 			 */
+			Profile.setLaptime("calcSkew");
 			double angle = LayoutAnalyzer.calcSkew(elements, null);
+			Profile.setLaptime("deskew");
 			LayoutAnalyzer.deskew(image_source, angle, new CvRect(0, 0, image_source.width(), image_source.height()));
 
+			Profile.setLaptime("getLineElement");
 			LayoutAnalyzer.getLineElement(image_source, elements, true, true);
+			Profile.setLaptime("analyzeLayout");
 			LayoutAnalyzer.analyzeLayout(image_source, elements);
 		}
+		Profile.setLaptime("analyzePageLayout (end)");
 	}
 
 	private static void learnGlyphs(IplImage image_source,

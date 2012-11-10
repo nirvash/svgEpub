@@ -32,6 +32,7 @@ public class LayoutElement {
 		int id = 0;
 		Rectangle rect;
 		List<LayoutElement> elements = new ArrayList<LayoutElement>();
+		int codePoint = 0;
 
 		public LayoutElement(int id) {
 			this.id = id;;
@@ -356,5 +357,17 @@ public class LayoutElement {
 		
 		public double[] getVector() {
 			return vector;
+		}
+
+		public void setCodePoint(int codePoint) {
+			this.codePoint = codePoint;	
+		}
+		
+		public int getCodePoint() {
+			return this.codePoint;
+		}
+
+		public List<LayoutElement> getChildren() {
+			return this.elements;
 		}
 	}

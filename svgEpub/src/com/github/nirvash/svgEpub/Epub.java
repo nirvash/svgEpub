@@ -37,6 +37,7 @@ import org.w3c.dom.Document;
 
 import com.github.nirvash.svgEpub.clip.ClipListItem;
 import com.github.nirvash.svgEpub.layout.LayoutAnalyzer;
+import com.github.nirvash.svgEpub.layout.LayoutElement;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.list.IFile;
 import com.github.nirvash.svgEpub.list.ListItem;
@@ -155,15 +156,17 @@ public class Epub {
 			} else if (PathUtil.isRasterFile(item.getFilename())) {
 				if (item.isConvertToSVG()) {
 					if (isReflow) {
+						ArrayList<LayoutElement> elements = new ArrayList<LayoutElement>();
+
 						InputStream in = item.getInputStream();
 						LayoutAnalyzer.setFontForgePath(properties.getProperty("fontforge_path", ""));
-						File fontFile = LayoutAnalyzer.createFont(in, page);
+						File fontFile = LayoutAnalyzer.createFont(in, elements, page);
 						in.close();
 						String fontPath = String.format("font/font%d.ttf", page);
 						if (fontFile.exists()) {
 							FileInputStream fontStream = new FileInputStream(fontFile);
 							book.getResources().add(new Resource(fontStream, fontPath));
-							page = createReflowPage(book, page, template, fontPath);
+							page = createReflowPage(book, page, template, fontPath, elements);
 						} else {
 							page = createImagePage(book, page, template, item);
 						}
@@ -287,11 +290,14 @@ public class Epub {
 		}
 	}
 
-
-	static private File convertToSvg(File file, Rectangle imageSize) {
+	static public File convertToSvg(File file, Rectangle imageSize) {
 		String path = PathUtil.getTmpDirectory();		
 		String svgFile = path + file.getName();
 		svgFile = svgFile.replaceAll("\\.[^.]*$", ".svg");
+		return convertToSvg(file, svgFile, imageSize);
+	}
+	
+	static public File convertToSvg(File file, String outputPath, Rectangle imageSize) {
 		File potrace = getPotraceFile();
 		if (potrace == null || !potrace.exists()) {
 			return null;
@@ -301,7 +307,7 @@ public class Epub {
 		commands.add(String.format("\"%s\"", potrace.getPath()));
 		commands.add(String.format("\"%s\"", file.getPath()));
 		commands.add("-o");
-		commands.add(String.format("\"%s\"", svgFile));
+		commands.add(String.format("\"%s\"", outputPath));
 		commands.add("-W");
 		commands.add(String.format("%dpt", imageSize.width));
 		commands.add("-H");
@@ -318,7 +324,7 @@ public class Epub {
 			e.printStackTrace();
 		}
 		
-		File outFile = new File(svgFile);
+		File outFile = new File(outputPath);
 		outFile.deleteOnExit();
 		return outFile;
 	}
@@ -337,7 +343,7 @@ public class Epub {
 	}
 	
 	
-	private int createReflowPage(Book book, int page, String template, String fontPath) {
+	private int createReflowPage(Book book, int page, String template, String fontPath, ArrayList<LayoutElement> elements) {
 		try {
 			String pageName = String.format("page_%04d", page);
 			String pageFile = pageName + ".xhtml";
@@ -346,18 +352,22 @@ public class Epub {
 			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf')}", page, page);
 			css += "html{writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
 
-			String body = "";
-			for (int codePoint=0x3400; codePoint<0x3400+300; codePoint++) {
-				body += new String(Character.toChars(codePoint));
+			StringBuffer body = new StringBuffer();
+			for (LayoutElement le: elements) {
+				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+					for (LayoutElement ch : le.getChildren()) {
+						body.append(Character.toChars(ch.getCodePoint()));
+					}
+				}
+				body.append("<br/>\n");
 			}
 			
 			String html = template.replaceAll("%%CSS%%", css);
-			html = html.replaceAll("%%BODY%%", body);
+			html = html.replaceAll("%%BODY%%", body.toString());
 			
 			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
 			book.addSection(pageName, new Resource(bi, pageFile));
 			bi.close();
-
 
 	    	page++;
 		} catch (Exception e) {
