@@ -57,30 +57,34 @@ public class LayoutAnalyzer {
 		fontForgePath = path;
 	}
 	
-	public static File createFont(IplImage image_source, IplImage image_binary, ArrayList<LayoutElement> elements, int page) {
+	public static File createFont(IplImage image_source, IplImage image_binary, double scale,
+			ArrayList<LayoutElement> elements, int page) {
 		Profile.setLaptime("createFont");
 
-		analyzePageLayout(image_source, image_binary, elements);
+		analyzePageLayout(image_source, image_binary, elements, false, scale);
 //		learnGlyphs(image_source, elements);
 		String fontPath = PathUtil.getTmpDirectory()+"work.ttf";
 		Profile.setLaptime("saveFont");
-		File fontFile = saveFont(image_source, elements, fontPath);
+		File fontFile = saveFont(image_source, image_binary, elements, fontPath, scale);
 		fontFile.deleteOnExit();
 		
 		Profile.setLaptime("createFont (end)");
 		return fontFile;
 	}
 
-	private static File saveFont(IplImage image_source,
-			ArrayList<LayoutElement> elements, String fontPath) {
+	private static File saveFont(IplImage image_source, IplImage image_binary2,
+			ArrayList<LayoutElement> elements, String fontPath, double scaleIn) {
 		String ext_in = "bmp";
 		String ext_out = "svg";
+
 		Profile.setLaptime("binalize");
-		double scale = 5.0;
+		double scale = 4.0;
 		CvSize targetSize = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( targetSize, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
+		scale = scale/scaleIn;
 		
+//		cvNot(image_binary, image_binary);
 		String tmpdir = PathUtil.getTmpDirectory();
 		String inputPath = tmpdir + "font\\";
 		File inputFile = new File(inputPath);
@@ -180,8 +184,8 @@ public class LayoutAnalyzer {
 		CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
 
-		analyzePageLayout(image_source, image_binary, elements);
-		drawPageLayout(image_source, elements, 2, CvScalar.MAGENTA, CvScalar.CYAN);
+		analyzePageLayout(image_source, image_binary, elements, true, scale);
+		drawPageLayout(image_source, elements, scale, 2, CvScalar.MAGENTA, CvScalar.CYAN);
 		
 		cvSaveImage(file.getPath(), image_source);
 		cvReleaseImage(image_source);
@@ -189,7 +193,7 @@ public class LayoutAnalyzer {
 		return file;
 	}
 	
-	public static void analyzePageLayout(IplImage image_source, IplImage image_binary, ArrayList<LayoutElement> elements) {
+	public static void analyzePageLayout(IplImage image_source, IplImage image_binary, ArrayList<LayoutElement> elements, boolean draw, double scale) {
 		Profile.setLaptime("analyzePageLayout (start)");
 		if (LayoutAnalyzer.getLineElement(image_source, image_binary, elements, false, false)) {
 			/*
@@ -206,7 +210,7 @@ public class LayoutAnalyzer {
 			Profile.setLaptime("getLineElement");
 			LayoutAnalyzer.getLineElement(image_source, image_binary, elements, true, true);
 			Profile.setLaptime("analyzeLayout");
-			LayoutAnalyzer.analyzeLayout(image_source, elements);
+			LayoutAnalyzer.analyzeLayout(image_source, elements, draw, scale);
 		}
 		Profile.setLaptime("analyzePageLayout (end)");
 	}
@@ -385,7 +389,7 @@ public class LayoutAnalyzer {
 	}
 
 	static void analyzeLayout(IplImage image_source,
-			ArrayList<LayoutElement> elements) {
+			ArrayList<LayoutElement> elements, boolean draw, double scale) {
 		// Check horizontal element
 		LayoutAnalyzer.checkTextHorizontal(elements);
 
@@ -395,6 +399,7 @@ public class LayoutAnalyzer {
 		// Detect column
 		Rectangle textColumn = null;
 		textColumn = getTextColumn(elements, textColumn);
+//		drawRectangle(image_source, textColumn, CvScalar.YELLOW);
 
 		// Check elements in column
 		LayoutAnalyzer.checkTextInColumn(elements, textColumn);
@@ -411,29 +416,109 @@ public class LayoutAnalyzer {
 		// Check multi columns
 		ArrayList<Rectangle> columnList = new ArrayList<Rectangle>();
 		LayoutAnalyzer.checkMultiColumns(elements, columnList, rubyThreshold);
-
+		
 		// Align vertical elements
 		LayoutAnalyzer.alignVerticalTextInColumn(elements, columnList);
 		
 		// Merge horizontal elements in vertical lines.
-//		mergeHorizontalElementsInVerticalLines(elements);
+		mergeHorizontalElementsInVerticalLines(elements);
+		
+		// Extract nombre
+		extractNonbre(elements, columnList);
 
 		// checkCharacter
-		LayoutAnalyzer.checkCharacter(elements);
+		LayoutAnalyzer.checkCharacter(elements, scale);
 		
 		// Add control code
 		addControlCode(elements, columnList);
+
+		if (draw) {
+			drawColumns(image_source, columnList, scale);
+		}
+	}
+
+	private static void extractNonbre(ArrayList<LayoutElement> elements,
+			ArrayList<Rectangle> columnList) {
+		Rectangle top, bottom;
+		if (columnList.size() == 2) {
+			top = columnList.get(0);
+			bottom = columnList.get(1);
+		} else {
+			top = columnList.get(0);
+			bottom = top;
+		}
 		
-		drawColumns(image_source, columnList);
+		DoubleArrayList ylist = new DoubleArrayList();
+		for (LayoutElement le : elements) {
+			if (bottom.intersects(le.rect)) {
+				if (le.getMaxY() > bottom.getMaxY() - le.width()*3) {
+					ylist.add(le.getMaxY());
+				}
+			}
+		}
+		
+		boolean hasNonbre = false;
+		double threshold = calcThreshold(ylist, 1, null, 0.99);
+		if (threshold == 0) return;
+		int count = 0;
+		for (LayoutElement le : elements) {
+			if (bottom.intersects(le.rect)) {
+				if (le.getMaxY() > threshold) {
+					count++;
+				}
+			}
+		}
+		if (count > 1) return;
+		
+		for (LayoutElement le : elements) {
+			if (bottom.intersects(le.rect)) {
+				if (le.getMaxY() > threshold) {
+					LayoutElement nonbre = new LayoutElement(0, LayoutElement.TYPE_TEXT_HORIZONTAL);
+					for (int i=le.elements.size()-1; i>=0; i--) {
+						LayoutElement ch = le.elements.get(i);
+						if (ch.rect.getCenterY() > threshold) {
+							nonbre.addChild(ch);
+							le.elements.remove(i);
+						}
+					}
+					if (nonbre.elements.size()>0) {
+						le.calcBoundsRect();
+						elements.add(nonbre);
+						hasNonbre = true;
+					}
+				}
+				break;
+			}
+		}
+		
+		if (hasNonbre) {
+			Rectangle column = null;
+			for (LayoutElement le : elements) {
+				if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+				if (bottom.intersects(le.rect)) {
+					if (column == null) {
+						column = new Rectangle(le.rect);
+					} else {
+						column.add(le.rect);
+					}
+				}
+			}
+			bottom.setBounds(column);
+		}
 	}
 
 	private static void drawColumns(IplImage image_source,
-			ArrayList<Rectangle> columnList) {
+			ArrayList<Rectangle> columnList, double scale) {
 		for (Rectangle column : columnList) {
-			CvPoint p1 = new CvPoint(column.x, column.y);
-			CvPoint p2 = new CvPoint((int)column.getMaxX(), (int)column.getMaxY());
-			cvDrawRect(image_source, p1, p2, CvScalar.RED, 1, 0, 0);
+			drawRectangle(image_source, column, CvScalar.RED, scale);
 		}
+	}
+
+	private static void drawRectangle(IplImage image_source, Rectangle column, CvScalar color, double scale) {
+		if (column == null) return;
+		CvPoint p1 = new CvPoint((int)(column.x/scale), (int)(column.y/scale));
+		CvPoint p2 = new CvPoint((int)(column.getMaxX()/scale), (int)(column.getMaxY()/scale));
+		cvDrawRect(image_source, p1, p2, color, 1, 0, 0);
 	}
 
 	private static void addControlCode(ArrayList<LayoutElement> elements,
@@ -480,7 +565,8 @@ public class LayoutAnalyzer {
 				if (le2.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 				if (!(le2.x() < le1.rect.getCenterX() && le1.rect.getCenterX() < le2.getMaxX())) continue;
 				int diff = (int) (le2.y() > le1.y() ? le2.y()-le1.getMaxY() : le1.y() - le2.getMaxY());
-				if (diff < le1.width()) {
+				int width = Math.max(le1.width(), le2.width());
+				if (diff < width) {
 					le2.add(le1);
 					elements.remove(i);
 					break;
@@ -535,10 +621,10 @@ public class LayoutAnalyzer {
 		return textColumn;
 	}
 
-	static void removeSmallRects(List<LayoutElement> rects) {
+	static void removeSmallRects(List<LayoutElement> rects, double scale) {
 		for (int i=rects.size()-1; i >= 0 ; i--) {
 			LayoutElement r1 = rects.get(i);
-			if (r1.width() * r1.height() <= 9) {
+			if (r1.width() * r1.height() <= 9*scale*scale) {
 				rects.remove(i);
 			}
 		}		
@@ -730,7 +816,7 @@ public class LayoutAnalyzer {
 		while (contours != null && !contours.isNull()) {
 			if (contours.elem_size() > 0) {
 				CvRect cr = cvBoundingRect(contours, 1);
-				Rectangle r = new Rectangle((int)(cr.x()/scale), (int)(cr.y()/scale), (int)(cr.width()/scale), (int)(cr.height()/scale));
+				Rectangle r = new Rectangle((int)(cr.x()), (int)(cr.y()), (int)(cr.width()), (int)(cr.height()));
 				rects.add(new LayoutElement(r));
 			}
 			contours = contours.h_next();
@@ -813,27 +899,94 @@ public class LayoutAnalyzer {
 		return angle;
 	}
 
-	static void checkCharacter(ArrayList<LayoutElement> elements) {
+	static void checkCharacter(ArrayList<LayoutElement> elements, double scale) {
 		// merge horizontal
 		mergeCharHorizontal(elements);
-		
-		alignCharacterHeight(elements);
+
+		alignCharacterHeight(elements, scale);
+		alignCharacterWidth(elements);
+		normalizeCharacterSize(elements);
+	}
+
+	private static void normalizeCharacterSize(ArrayList<LayoutElement> elements) {
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			for (LayoutElement r : le.elements) {
+				if (r.width() == r.height()) continue;
+				if (r.height() < r.width()) {
+					int diff = r.width() - r.height();
+					r.rect.y -= diff / 2;
+					r.rect.height += diff;
+				}
+			}
+		}
+	}
+
+	static void alignCharacterWidth(ArrayList<LayoutElement> elements) {
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			int center = 0;
+			int count = 0;
+			for (LayoutElement r : le.elements) {
+				if (r.width() > le.width() * 0.8) {
+					count++;
+					center += r.rect.getCenterX();
+				}
+			}
+			if (count > 2) {
+				center /= count;
+			} else {
+				center = (int)le.rect.getCenterX();
+			}
+			for (LayoutElement r : le.elements) {
+				if (r.rect.getCenterX() >= center) {
+					int width = (int)((r.getMaxX() - center) * 2);
+					r.rect.x = Math.max(center - width/2, le.x());
+					r.rect.width = Math.min(width, le.width());
+				} else {
+					int width = (int)((center - r.x()) * 2);
+					r.rect.x = Math.max(center - width/2, le.x());
+					r.rect.width = Math.min(width, le.width());
+				}
+				int diff = Math.min(r.height(), le.width()) - r.width();
+
+				if (diff > 0) {
+					int rcenter = (int)r.rect.getCenterX();
+					r.rect.width += diff;
+					r.rect.x -= r.rect.getCenterX() - rcenter;
+					/*
+					int right = (int)r.getMaxX() - center;
+					int left = center - r.x();
+					if (right - left > diff) {
+						r.rect.x -= diff;
+					} else if (right - left > 0) {
+						int rdiff = right - left;
+						r.rect.x -= rdiff + (diff - rdiff) / 2;
+					} else if (left - right > diff) {
+						// nop
+					} else {
+						int rdiff = left - right;
+						r.rect.x -= (diff - rdiff) / 2 + rdiff;
+					}
+					r.rect.width += diff;
+					*/
+				}
+			}
+		}
 	}
 	
-	static void alignCharacterHeight(ArrayList<LayoutElement> elements) {
+	static void alignCharacterHeight(ArrayList<LayoutElement> elements, double scale) {
 		DoubleArrayList hlist = new DoubleArrayList();
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			for (LayoutElement r : le.elements) {
 				hlist.add(r.height());
-				r.rect.x = le.rect.x;
-				r.rect.width = le.rect.width;
 			}
 		}
 		if (hlist.size()==0) return;
 
 		double[] avglist = new double[2];
-//		double threshold = calcThreshold(hlist, 1, avglist);
+		double threshold = calcThreshold(hlist, 1, avglist, 0.7);
 		double avgHeight = Math.max(avglist[0], avglist[1]);
 
 		int charHeight = 0;
@@ -875,7 +1028,7 @@ public class LayoutAnalyzer {
 					merged = false;
 					if (r1.height() < charHeight) {
 						if (r2.y() - r1.getMaxY() > charHeight/2) break; // Too far to merge
-						if (r2.getMaxY() - r1.y() <= charHeight+1) {
+						if (r2.getMaxY() - r1.y() <= charHeight+1*scale) {
 							merged = true;
 							r1.add(r2);
 							itr.remove();
@@ -965,7 +1118,7 @@ public class LayoutAnalyzer {
 			}
 		}
 
-		double threshold = calcThreshold(ylist, 1, null);
+		double threshold = calcThreshold(ylist, 1, null, 0.7);
 		if (threshold == 0) {
 			columnList.add(singleColumn);
 			return;
@@ -1081,7 +1234,7 @@ public class LayoutAnalyzer {
 			widths.add(le.width());
 		}
 
-		double rubyThreshold = calcThreshold(widths, 1, null);
+		double rubyThreshold = calcThreshold(widths, 1, null, 0.7);
 		if (rubyThreshold == 0) return rubyThreshold;
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL &&
@@ -1129,7 +1282,7 @@ public class LayoutAnalyzer {
 		}
 	}
 
-	private static double calcThreshold(DoubleArrayList lengthList, int k, double[] avglist) {
+	private static double calcThreshold(DoubleArrayList lengthList, int k, double[] avglist, double limitRate) {
 		if (lengthList.size()<4) return 0; // Too few data to analyze
 		double threshold = 0;
 		double maxIndexBegin = 0;
@@ -1226,7 +1379,7 @@ public class LayoutAnalyzer {
 				}
 			}
 
-			if (Math.abs(ravg) > 0.7f) {
+			if (Math.abs(ravg) > limitRate) {
 				// Maybe single-humped distribution
 				return 0;
 			}
@@ -1328,12 +1481,12 @@ public class LayoutAnalyzer {
 		mergeRects(rects);
 
 		// Remove small regions
-		removeSmallRects(rects);
+		removeSmallRects(rects, scale);
 
 		// Draw rects
 		Collections.sort(rects, new RectComparator());
 		if (drawResult) {
-			//drawLineElements(image_source, rects, 2, CvScalar.CYAN, CvScalar.GREEN);
+//			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
 		}
 
 		// Grouping
@@ -1389,7 +1542,7 @@ public class LayoutAnalyzer {
 	}
 
 	static void drawPageLayout(IplImage image,
-			ArrayList<LayoutElement> elements, int lineWidth, CvScalar rectColor,  CvScalar elemColor) {
+			ArrayList<LayoutElement> elements, double scale, int lineWidth, CvScalar rectColor,  CvScalar elemColor) {
 		CvFont font = new CvFont(CV_FONT_NORMAL, 0.3, 1);
 		IplImage tmpImage = cvCreateImage(image.cvSize(), IPL_DEPTH_8U, 3);
 		cvNot(image, image);
@@ -1398,16 +1551,16 @@ public class LayoutAnalyzer {
 			cvSet(tmpImage, new CvScalar(255,255,255,0));
 			rectColor = le.getColor();
 
-			cvRectangle(tmpImage, cvPoint(r.x, r.y), 
-					cvPoint(r.x + r.width, r.y + r.height),
+			cvRectangle(tmpImage, cvPoint((int)(r.x/scale), (int)(r.y/scale)), 
+					cvPoint((int)((r.x + r.width)/scale), (int)((r.y + r.height)/scale)),
 					rectColor, lineWidth, 0, 0);
 			String text = le.toString();
-			cvPutText(tmpImage, text, cvPoint(r.x, r.y - 4), font, rectColor);
+			cvPutText(tmpImage, text, cvPoint((int)(r.x/scale), (int)(r.y/scale) - 4), font, rectColor);
 
 			cvNot(tmpImage, tmpImage);
 			cvAddWeighted(image, 1.0f, tmpImage, 1.0f, 0.0, image);
 			if (elemColor != null) {
-				drawLineElements(image, le.elements, 1, elemColor, null);
+				drawLineElements(image, le.elements, scale, 1, elemColor, null);
 			}
 		}
 		cvNot(image, image);
@@ -1415,22 +1568,23 @@ public class LayoutAnalyzer {
 
 		for (LayoutElement le : elements) {
 			if (elemColor != null) {
-				drawLineElements(image, le.elements, 1, elemColor, null);
+				drawLineElements(image, le.elements, scale, 1, elemColor, elemColor);
 			}
 		}
 	}
 
 	static void drawLineElements(IplImage image,
-			List<LayoutElement> elements, int lineWidth, CvScalar rectColor, CvScalar textColor) {
+			List<LayoutElement> elements, double scale, int lineWidth, CvScalar rectColor, CvScalar textColor) {
 		CvFont font = new CvFont(CV_FONT_HERSHEY_SCRIPT_SIMPLEX, 0.3, 1);
 		int i = 0;
 		for (LayoutElement r : elements) {
-			cvRectangle(image, cvPoint(r.x(), r.y()), 
-					cvPoint(r.x() + r.width(), r.y() + r.height()),
+			CvPoint p1 = new CvPoint((int)(r.x()/scale), (int)(r.y()/scale));
+			CvPoint p2 = new CvPoint((int)((r.x()+r.width())/scale), (int)((r.y()+r.height())/scale));
+			cvRectangle(image, p1, p2,
 					rectColor, lineWidth, 0, 0);
 			if (textColor != null) {
-				String text = Integer.toString(i++);
-				cvPutText(image, text, cvPoint(r.x(), r.y()), font, textColor);
+				String text = String.format("%d, %d", (int)(r.width()/scale), (int)(r.height()/scale));
+				cvPutText(image, text, new CvPoint((int)(r.getMaxX()/scale+2), (int)(r.y()/scale)), font, textColor);
 			}
 		}
 	}

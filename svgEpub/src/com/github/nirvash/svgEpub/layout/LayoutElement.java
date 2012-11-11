@@ -99,6 +99,15 @@ public class LayoutElement {
 			return id;
 		}
 		
+		public void addChild(LayoutElement child) {
+			if (rect == null) {
+				rect = new Rectangle(child.rect);
+			} else {
+				rect.add(child.rect);
+			}
+			elements.add(child);
+		}
+		
 		public void add(LayoutElement l1) {
 			if (rect == null) {
 				rect = l1.rect;
@@ -292,7 +301,7 @@ public class LayoutElement {
 			return ruby;
 		}
 
-		private void calcBoundsRect() {
+		public void calcBoundsRect() {
 			this.rect = null;
 			for (LayoutElement le : elements) {
 				if (rect == null) {

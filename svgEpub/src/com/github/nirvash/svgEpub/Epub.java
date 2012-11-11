@@ -189,13 +189,13 @@ public class Epub {
 						CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 						IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
 						
-						File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, elements, page);
+						File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, scale, elements, page);
 						in.close();
 						String fontPath = String.format("font/font%d.ttf", page);
 						if (fontFile.exists()) {
 							FileInputStream fontStream = new FileInputStream(fontFile);
 							book.getResources().add(new Resource(fontStream, fontPath));
-							page = createReflowPage(book, page, template, reflowPage, fontPath, elements, image_source);
+							page = createReflowPage(book, page, template, reflowPage, fontPath, elements, image_source, scale);
 						} else {
 							if (reflowPage.hasPage()) {
 								page = createReflowPage(book, page, template, reflowPage);
@@ -411,7 +411,7 @@ public class Epub {
 
 	private int createReflowPage(Book book, int page, String template, 
 			ReflowPage reflowPage, String fontPath, 
-			ArrayList<LayoutElement> elements, IplImage image_source) {
+			ArrayList<LayoutElement> elements, IplImage image_source, double scale) {
 		try {
 			String css = String.format(".page%d { font-family: font%d; line-height: 1.5em; }\n", page, page);
 			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf') }\n", page, page);
@@ -436,7 +436,7 @@ public class Epub {
 						body.append("</span>");
 						inTextBlock = false;
 					}
-					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1));
+					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1.0f/scale));
 					String imageFileName = String.format("image_%04d_%02d.png", page, imageIndex);
 					String imageFileURI = "images/" + imageFileName;
 					String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
