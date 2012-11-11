@@ -2,6 +2,7 @@ package com.github.nirvash.svgEpub.layout;
 
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacpp.FloatPointer;
+import com.googlecode.javacv.cpp.opencv_core.IplImage;
 import com.googlecode.javacv.cpp.opencv_core.*;
 import com.googlecode.javacv.cpp.opencv_nonfree.*;
 import com.googlecode.javacv.cpp.opencv_features2d.*;
@@ -422,6 +423,17 @@ public class LayoutAnalyzer {
 		
 		// Add control code
 		addControlCode(elements, columnList);
+		
+		drawColumns(image_source, columnList);
+	}
+
+	private static void drawColumns(IplImage image_source,
+			ArrayList<Rectangle> columnList) {
+		for (Rectangle column : columnList) {
+			CvPoint p1 = new CvPoint(column.x, column.y);
+			CvPoint p2 = new CvPoint((int)column.getMaxX(), (int)column.getMaxY());
+			cvDrawRect(image_source, p1, p2, CvScalar.RED, 1, 0, 0);
+		}
 	}
 
 	private static void addControlCode(ArrayList<LayoutElement> elements,

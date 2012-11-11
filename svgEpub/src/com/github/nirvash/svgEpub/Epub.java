@@ -44,6 +44,7 @@ import org.w3c.dom.Document;
 import com.github.nirvash.svgEpub.clip.ClipListItem;
 import com.github.nirvash.svgEpub.layout.LayoutAnalyzer;
 import com.github.nirvash.svgEpub.layout.LayoutElement;
+import com.github.nirvash.svgEpub.layout.ReflowPage;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.list.IFile;
 import com.github.nirvash.svgEpub.list.ListItem;
@@ -151,6 +152,8 @@ public class Epub {
 		is.close();
 		
 		int page = 1;
+		
+		ReflowPage reflowPage = new ReflowPage();
 
 		for (ListItem item : fileList) {
 			monitor.setProgress(page-1);
@@ -160,6 +163,9 @@ public class Epub {
 			}
 			
 			if (PathUtil.isSvgFile(item.getFilename())) {
+				if (reflowPage.hasPage()) {
+					page = createReflowPage(book, page, template, reflowPage);
+				}
 				page = createSvgPage(book, page, template, item);
 			} else if (PathUtil.isRasterFile(item.getFilename())) {
 				if (item.isConvertToSVG()) {
@@ -189,13 +195,19 @@ public class Epub {
 						if (fontFile.exists()) {
 							FileInputStream fontStream = new FileInputStream(fontFile);
 							book.getResources().add(new Resource(fontStream, fontPath));
-							page = createReflowPage(book, page, template, fontPath, elements, image_source);
+							page = createReflowPage(book, page, template, reflowPage, fontPath, elements, image_source);
 						} else {
+							if (reflowPage.hasPage()) {
+								page = createReflowPage(book, page, template, reflowPage);
+							}
 							page = createImagePage(book, page, template, item);
 						}
 						cvReleaseImage(image_source);
 						cvReleaseImage(image_binary);
 					} else {
+						if (reflowPage.hasPage()) {
+							page = createReflowPage(book, page, template, reflowPage);
+						}
 						File svgFile = convertToSvgFromImage(item);
 						if (svgFile != null) {
 							IFile svgItem = new FileItem(svgFile, item.getClipRect());
@@ -206,10 +218,17 @@ public class Epub {
 						}
 					}
 				} else {
+					if (reflowPage.hasPage()) {
+						page = createReflowPage(book, page, template, reflowPage);
+					}
 					page = createImagePage(book, page, template, item);
 				}
 			}
-		}	
+		}
+		if (reflowPage.hasPage()) {
+			page = createReflowPage(book, page, template, reflowPage);
+		}
+
 		return true;
 	}
 
@@ -367,21 +386,45 @@ public class Epub {
 		}
 	}
 	
-	
-	private int createReflowPage(Book book, int page, String template, String fontPath, 
-			ArrayList<LayoutElement> elements, IplImage image_source) {
+
+	private int createReflowPage(Book book, int page, String template,
+			ReflowPage reflowPage) {
 		try {
-			String pageName = String.format("page_%04d", page);
+			String pageName = String.format("page_%04d", page-1);
 			String pageFile = pageName + ".xhtml";
 
-			String css = String.format("body { font-family: font%d; line-height: 1.5em; }\n", page);
+			String css = "html { writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
+			css += reflowPage.getCss();
+			String html = template.replaceAll("%%CSS%%", css);
+			html = html.replaceAll("%%BODY%%", reflowPage.getBody());
+			
+			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+			book.addSection(pageName, new Resource(bi, pageFile));
+			bi.close();
+			
+			reflowPage.clear();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}			
+		return page;
+	}
+
+	private int createReflowPage(Book book, int page, String template, 
+			ReflowPage reflowPage, String fontPath, 
+			ArrayList<LayoutElement> elements, IplImage image_source) {
+		try {
+			String css = String.format(".page%d { font-family: font%d; line-height: 1.5em; }\n", page, page);
 			css += String.format("@font-face { font-family: font%d; src: url('font/font%d.ttf') }\n", page, page);
-			css += "html { writing-mode: vertical-rl;-webkit-writing-mode: vertical-rl;-epub-writing-mode: vertical-rl;}";
 
 			int imageIndex = 0;
 			StringBuffer body = new StringBuffer();
+			boolean inTextBlock = false;
 			for (LayoutElement le: elements) {
 				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+					if (!inTextBlock) {
+						body.append(String.format("<span class=\"page%d\">", page));
+						inTextBlock = true;
+					}
 					for (LayoutElement ch : le.getChildren()) {
 						body.append(ch.getText());
 					}
@@ -389,6 +432,10 @@ public class Epub {
 						body.append("<br/>\n");
 					}
 				} else if (le.getType() == LayoutElement.TYPE_IMAGE) {
+					if (inTextBlock) {
+						body.append("</span>");
+						inTextBlock = false;
+					}
 					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1));
 					String imageFileName = String.format("image_%04d_%02d.png", page, imageIndex);
 					String imageFileURI = "images/" + imageFileName;
@@ -404,14 +451,17 @@ public class Epub {
 					body.append(String.format("<img src=\"%s\" height=\"%s\"/><br/><br/>", imageFileURI, height));
 				}
 			}
+			if (inTextBlock) {
+				body.append("</span>");
+				inTextBlock = false;
+			}
+			
+			reflowPage.appendCss(css);
+			reflowPage.appendBody(body);
 			
 			String html = template.replaceAll("%%CSS%%", css);
 			html = html.replaceAll("%%BODY%%", body.toString());
 			
-			ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
-			book.addSection(pageName, new Resource(bi, pageFile));
-			bi.close();
-
 	    	page++;
 		} catch (Exception e) {
 			e.printStackTrace();
