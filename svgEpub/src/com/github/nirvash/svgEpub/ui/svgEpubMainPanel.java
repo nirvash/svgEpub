@@ -24,6 +24,8 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JList;
+import javax.swing.JMenu;
+import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -125,6 +127,8 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		Epub.setProperty(properties);
 		ListItem.setProperties(properties);
 		add(getJPanelMain());
+		setJMenuBar(createMenuBar());
+		
 		setSize(800, 600);
 		
 		ImageUtility.initialize(properties.getProperty("enable_opencv", "no").equals("yes"));		
@@ -136,6 +140,23 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 
 	}
 	
+	String[] menuEditItemTitle = {"Select two-page spread"};
+	String[] menuEditItemAction = {"SelectSpread"};
+	
+	private JMenuBar createMenuBar() {
+		JMenuBar bar = new JMenuBar();
+		JMenu menuEdit = new JMenu("Edit");
+		for (int i=0; i<menuEditItemTitle.length; i++) {
+			JMenuItem item = new JMenuItem();
+			item.setText(menuEditItemTitle[i]);
+			item.setActionCommand(menuEditItemAction[i]);
+			item.addActionListener(this);
+			menuEdit.add(item);
+		}
+		bar.add(menuEdit);
+		return bar;
+	}
+
 	private JButton getJButtonLayoutAnalyze() {
 		if (jButtonLayoutAnalyze == null) {
 			jButtonLayoutAnalyze = new JButton();
@@ -663,6 +684,20 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			};
 			
 			th.start();
+		} else if (e.getActionCommand().equals("SelectSpread")) {
+			BookListModel model = (BookListModel)jListFile.getModel();
+			ArrayList<Integer> selectedIndex = new ArrayList<Integer>();
+			for (int i=0; i<model.size(); i++) {
+				ListItem item = (ListItem)model.get(i);
+				if (ImageUtility.isSpreadPage(item)) {
+					selectedIndex.add(i);
+				}
+			}
+			int[] indicies = new int[selectedIndex.size()];
+			for (int i=0; i<indicies.length; i++) {
+				indicies[i] = selectedIndex.get(i);
+			}
+			jListFile.setSelectedIndices(indicies);
 		}
 
 	}

@@ -1486,7 +1486,7 @@ public class LayoutAnalyzer {
 		// Draw rects
 		Collections.sort(rects, new RectComparator());
 		if (drawResult) {
-//			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
+			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
 		}
 
 		// Grouping
@@ -1568,7 +1568,7 @@ public class LayoutAnalyzer {
 
 		for (LayoutElement le : elements) {
 			if (elemColor != null) {
-				drawLineElements(image, le.elements, scale, 1, elemColor, elemColor);
+				drawLineElements(image, le.elements, scale, 1, elemColor, null);
 			}
 		}
 	}

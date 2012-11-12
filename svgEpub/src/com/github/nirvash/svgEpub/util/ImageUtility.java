@@ -1,6 +1,7 @@
 package com.github.nirvash.svgEpub.util;
 import java.awt.Color;
 import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -530,5 +531,24 @@ public class ImageUtility {
 		cvReleaseImage(image_source);
 		
 		return isColorImage ? false : !isComplicatedIllust;
+	}
+
+	public static boolean isSpreadPage(ListItem item) {
+		boolean isSpreadPage = false;
+		try{
+			InputStream is = item.getInputStream();
+			BufferedImage image = ImageIO.read(is);
+			int width = image.getWidth();
+			int height = image.getHeight();
+			double minWidth = height*182*2*0.8/257;
+			double maxWidth = height*182*2*1.2/257;
+			if (minWidth < width && width < maxWidth) {
+				isSpreadPage = true;
+			}
+			is.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return isSpreadPage;
 	}
 }
