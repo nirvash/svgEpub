@@ -31,7 +31,7 @@ public class ClipTemplate {
 			clipRectLeft.width = imageRect.width / 2;
 
 			Rectangle clipRectRight = new Rectangle(imageRect);
-			clipRectRight.x = imageRect.width / 2 + 1;
+			clipRectRight.x = imageRect.width / 2;
 			clipRectRight.width = imageRect.width / 2;
 
 			list.add(new ClipListItem(clipRectRight, "Right"));
@@ -41,7 +41,7 @@ public class ClipTemplate {
 			clipRectTop.height = imageRect.height / 2;
 	
 			Rectangle clipRectBottom = new Rectangle(imageRect);
-			clipRectBottom.y = imageRect.height / 2 + 1;
+			clipRectBottom.y = imageRect.height / 2;
 			clipRectBottom.height = imageRect.height / 2;
 	
 			list.add(new ClipListItem(clipRectTop, "Top"));

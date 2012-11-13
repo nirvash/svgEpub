@@ -589,8 +589,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		} else if (e.getActionCommand().equals("AutoClip")) {
 			int index = jListFile.getSelectedIndex();
 			if (index == -1) return;
-			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
-			item.setClipRect(ImageUtility.getContentArea(item));
+			Object[] items = jListFile.getSelectedValues();
+			for (Object obj : items) {
+				ListItem item = (ListItem)obj;
+				item.setClipRect(ImageUtility.getContentArea(item));
+			}
 			itemSelectionListener.updateItem(index);
 		} else if (e.getActionCommand().equals("ClipTemplate")) {
 			getClipTemplateDialog().setMainPanel(this);

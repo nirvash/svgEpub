@@ -141,6 +141,7 @@ public class FileDropHandler extends TransferHandler {
 // TODO : close if all items are removed.
 //			zf.close();
 		} catch (Exception e) {
+			e.printStackTrace();
 			return index;
 		}
 		

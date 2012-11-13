@@ -468,8 +468,73 @@ public class Epub {
 		}
 		return page;
 	}
-
+	
 	private int createImagePage(Book book, int page, String template, IFile item)  {
+		ArrayList<ClipListItem> clipList = item.getClipList();
+		if (clipList.size() == 1 && item.getClipRect() == null) {
+			return createImagePageNoClip(book, page, template, item);
+		}
+		
+		try {
+			InputStream stream = item.getInputStream();
+			BufferedImage image = ImageIO.read(stream);
+			stream.close();
+			
+			Rectangle imageRect = new Rectangle(0, 0, image.getWidth(), image.getHeight());
+			
+			for (int i=0; i<clipList.size(); i++) {
+				ClipListItem clipItem = clipList.get(i);
+				String resourceName = String.format("page_%04d", page);
+		    	String extension = PathUtil.getExtension(item.getFilename());
+		    	String imageURI = "images/" + resourceName + "." + extension;
+
+		    	Rectangle clipRectOriginal = clipItem.getClipRect();
+		    	Rectangle clipRect = null;
+		    	if (clipRectOriginal != null && !clipRectOriginal.equals(imageRect)) {
+			    	clipRect = new Rectangle(clipRectOriginal);
+			    	clipRect = clipRect.intersection(imageRect);
+			    	BufferedImage clipImage = image.getSubimage(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+			    	String clipImageFilePath = PathUtil.getTmpDirectory() + resourceName + "." + extension;
+			    	File clipImageFile = new File(clipImageFilePath);
+			    	clipImageFile.deleteOnExit();
+			    	ImageIO.write(clipImage, extension, clipImageFile);
+			    	InputStream clipStream = new FileInputStream(clipImageFile);
+					book.getResources().add(new Resource(clipStream, imageURI));
+					clipStream.close();
+		    	} else {
+		    		if (clipRectOriginal == null) {
+		    			clipRect = new Rectangle(0, 0, image.getWidth(), image.getHeight());
+		    		} else {
+		    			clipRect = clipRectOriginal;
+		    		}
+					stream = item.getInputStream();
+					book.getResources().add(new Resource(stream, imageURI));
+					stream.close();
+		    	}
+				
+				String pageName = String.format("page_%04d", page);
+				String pageFile = pageName + ".xhtml";
+
+				Rectangle rect = new Rectangle(0, 0, clipRect.width, clipRect.height);
+				Document doc = ImageUtility.createSvgDocument(null, rect, imageURI, true, 0);
+				doc.normalizeDocument();
+	
+				String svgTag = serializeDocument(doc);
+				String html = template.replaceAll("%%BODY%%", svgTag);
+				
+				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+				book.addSection(pageName, new Resource(bi, pageFile));
+				bi.close();
+				page++;
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return page;
+	}
+
+	private int createImagePageNoClip(Book book, int page, String template, IFile item)  {
 		try {
 			String resourceName = String.format("page_%04d", page);
 	    	String extension = PathUtil.getExtension(item.getFilename());
