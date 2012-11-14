@@ -458,7 +458,7 @@ public class LayoutAnalyzer {
 		}
 		
 		boolean hasNonbre = false;
-		double threshold = calcThreshold(ylist, 1, null, 0.99);
+		double threshold = calcThreshold(ylist, 1, null, 0.99, false);
 		if (threshold == 0) return;
 		int count = 0;
 		for (LayoutElement le : elements) {
@@ -630,13 +630,12 @@ public class LayoutAnalyzer {
 		}		
 	}
 
-	// This method does not work properly now.
-	static void groupSeparateRuby(List<LayoutElement> group) {
+	static void separateRuby(List<LayoutElement> group) {
 		List<LayoutElement> rubyList = new ArrayList<LayoutElement>();
 		for (LayoutElement le : group) {
-			LayoutElement ruby = le.extractRuby();
-			if (ruby != null) {
-				rubyList.add(ruby);
+			List<LayoutElement> rubys = le.extractRuby();
+			if (rubys != null) {
+				rubyList.addAll(rubys);
 			}
 		}
 
@@ -665,7 +664,6 @@ public class LayoutAnalyzer {
 		for (int i=group.size()-1; i>=0; i--) {
 			LayoutElement l1 = group.get(i);
 			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
-			//			if (l1.toString().equals("33")) break;
 			for (int j=i-1; j>=0; j--) {
 				LayoutElement l2 = group.get(j);
 				if (l2.getType() == LayoutElement.TYPE_IMAGE) continue;
@@ -729,6 +727,12 @@ public class LayoutAnalyzer {
 
 		boolean isOverwrap = !(r1.x > r2.getMaxX() || r1.getMaxX() < r2.x);
 		if (!isOverwrap) return isOverwrap;
+		
+		Rectangle intersect = r1.intersection(r2);
+		int area = intersect.width*intersect.height;
+		if (area > r1.width*r1.height*0.4 || area > r2.width*r2.height*0.4) {
+			return true;
+		}
 
 		double distance;
 		if (r1.getMaxY() < r2.y) {
@@ -737,8 +741,6 @@ public class LayoutAnalyzer {
 			distance = Math.abs(r1.y - r2.getMaxY());
 		}
 
-		//			if (r1.width > r1.height*3) return false;
-		//			if (r2.width > r2.height*3) return false;
 		if ((float)Math.abs(r1.width - r2.width) / (float)Math.max(r1.width, r2.width) < 0.2f) {
 			// not horizontal line.
 			if (r1.height > r1.width*3 && r2.height > r2.width*3) { 
@@ -986,7 +988,7 @@ public class LayoutAnalyzer {
 		if (hlist.size()==0) return;
 
 		double[] avglist = new double[2];
-		double threshold = calcThreshold(hlist, 1, avglist, 0.7);
+		double threshold = calcThreshold(hlist, 1, avglist, 0.7, false);
 		double avgHeight = Math.max(avglist[0], avglist[1]);
 
 		int charHeight = 0;
@@ -1118,7 +1120,7 @@ public class LayoutAnalyzer {
 			}
 		}
 
-		double threshold = calcThreshold(ylist, 1, null, 0.7);
+		double threshold = calcThreshold(ylist, 1, null, 0.7, false);
 		if (threshold == 0) {
 			columnList.add(singleColumn);
 			return;
@@ -1229,18 +1231,18 @@ public class LayoutAnalyzer {
 	static double checkRubyElement(ArrayList<LayoutElement> elements) {
 		DoubleArrayList widths = new DoubleArrayList();
 		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL &&
-					le.getType() != LayoutElement.TYPE_RUBY) continue;
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			widths.add(le.width());
 		}
 
-		double rubyThreshold = calcThreshold(widths, 1, null, 0.7);
+		double rubyThreshold = calcThreshold(widths, 1, null, 0.7, false);
 		if (rubyThreshold == 0) return rubyThreshold;
 		for (LayoutElement le : elements) {
-			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL &&
-					le.getType() != LayoutElement.TYPE_RUBY) continue;
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			if (le.width() < rubyThreshold) {
 				le.setType(LayoutElement.TYPE_RUBY);
+			} else {
+				le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
 			}
 		}
 		
@@ -1282,7 +1284,7 @@ public class LayoutAnalyzer {
 		}
 	}
 
-	private static double calcThreshold(DoubleArrayList lengthList, int k, double[] avglist, double limitRate) {
+	public static double calcThreshold(DoubleArrayList lengthList, int k, double[] avglist, double limitRate, boolean useRelative) {
 		if (lengthList.size()<4) return 0; // Too few data to analyze
 		double threshold = 0;
 		double maxIndexBegin = 0;
@@ -1291,7 +1293,7 @@ public class LayoutAnalyzer {
 		double ravg = 0;
 		lengthList.sort();
 
-		final int limit = (int)avg * 2;
+		final int limit = (int)Math.ceil(lengthList.get(lengthList.size()-1))+1;
 		int[] hist = new int[limit+1];
 
 		lengthList.trimToSize();
@@ -1320,10 +1322,11 @@ public class LayoutAnalyzer {
 				max = 0;
 			}
 			boolean isRepeat = false;
+			double avg1 = 0, avg2 = 0;
 			for (int i = 0; i < limit; i++) {
 				double n1 = 0;
 				double wn1 = 0;
-				double avg1 = 0;
+				avg1 = 0;
 				for (int j=0; j<i; j++) {
 					n1 += hist[j];
 					wn1 += hist[j] * j;
@@ -1342,7 +1345,7 @@ public class LayoutAnalyzer {
 
 				double n2 = 0;
 				double wn2 = 0;
-				double avg2 = 0;
+				avg2 = 0;
 				for (int j=i; j<limit; j++) {
 					n2 += hist[j];
 					wn2 += hist[j] * j;
@@ -1367,7 +1370,15 @@ public class LayoutAnalyzer {
 					isRepeat = true;
 					maxIndexBegin = i;
 					threshold = i;
-					ravg = avg1 / avg2;
+					if (useRelative) {
+						if (avg2-avg == 0) {
+							ravg = 100000;
+						} else {
+							ravg = Math.abs(avg1-avg)/Math.abs(avg2-avg);
+						}
+					} else {
+						ravg = avg1 / avg2;
+					}
 					if (avglist != null) {
 						avglist[0] = avg1;
 						avglist[1] = avg2;
@@ -1379,12 +1390,18 @@ public class LayoutAnalyzer {
 				}
 			}
 
-			if (Math.abs(ravg) > limitRate) {
-				// Maybe single-humped distribution
-				return 0;
+			if (useRelative) {
+				if (Math.abs(ravg) > limitRate) {
+					return 0;
+				}
+			} else {
+				if (Math.abs(ravg) > limitRate) {
+					// Maybe single-humped distribution
+					return 0;
+				}
 			}
 		}
-
+		
 		return threshold;
 	}
 
@@ -1486,7 +1503,7 @@ public class LayoutAnalyzer {
 		// Draw rects
 		Collections.sort(rects, new RectComparator());
 		if (drawResult) {
-			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
+//			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
 		}
 
 		// Grouping
@@ -1521,8 +1538,7 @@ public class LayoutAnalyzer {
 
 			groupYAxis(group, 2.0f, false);
 
-			// separate ruby (this function does not work now...)
-//			groupSeparateRuby(group);
+			separateRuby(group);
 			
 			// Adjust element width
 //			adjustElementWidth(group);

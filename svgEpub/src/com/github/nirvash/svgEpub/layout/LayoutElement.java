@@ -11,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import cern.colt.list.DoubleArrayList;
+
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
 import com.googlecode.javacv.cpp.opencv_core.CvPoint;
@@ -137,7 +139,77 @@ public class LayoutElement {
 			LayoutAnalyzer.mergeRects(elements);
 		}
 
-		public LayoutElement extractRuby() {
+		public List<LayoutElement> extractRuby() {
+			if (rect.height < rect.width*3) return null;
+			DoubleArrayList rightEdges = new DoubleArrayList();
+			for (int i=0; i<elements.size(); i++) {
+				LayoutElement ch1 = elements.get(i);
+				if (ch1.width() < rect.width * 0.2 && ch1.getMaxX() < (rect.x + rect.width * 0.7)) continue;
+				boolean isMostRight = true;
+				for (int j=i+1; j<elements.size(); j++) {
+					LayoutElement ch2 = elements.get(j);
+					if (ch2.getMaxX() <= ch1.getMaxX()) continue;
+					if (ch2.y() > ch1.getMaxY()) continue;
+					if (ch2.getMaxY() < ch1.y()) continue;
+					isMostRight = false;
+					break;
+				}
+				if (isMostRight) {
+					rightEdges.add(ch1.getMaxX()-rect.x);
+				}
+			}
+
+			if (rightEdges.size() > 5) {
+				int removeMinErrorIndex = (int)(rightEdges.size()*0.07);
+				rightEdges.sort();
+				rightEdges.removeFromTo(0, removeMinErrorIndex);
+			}
+			
+			double[] avgList = new double[2];
+			double limit = 2;
+			double th = LayoutAnalyzer.calcThreshold(rightEdges, 1, avgList, limit, true);
+			if (th == 0) return null;
+			if (avgList[1]-avgList[0] < rect.width*0.2) return null;
+			
+			ArrayList<LayoutElement> rubyList = new ArrayList<LayoutElement>();
+			for (int i=elements.size()-1; i>=0; i--) {
+				LayoutElement ch1 = elements.get(i);
+				if (ch1.getMaxX() >= rect.x + avgList[0] + this.rect.width * 0.1) {
+					if (ch1.x() >= rect.x + avgList[0]) {
+						ch1.setType(LayoutElement.TYPE_RUBY);
+						rubyList.add(ch1);
+						elements.remove(i);
+					} else {
+						int rubyWidth = (int)(ch1.getMaxX()-(rect.x+avgList[0]));
+						if (ch1.rect.width - rubyWidth < rect.width * 0.1) {
+							ch1.setType(LayoutElement.TYPE_RUBY);
+							rubyList.add(ch1);
+							elements.remove(i);
+						} else {
+							LayoutElement rubyCh = new LayoutElement(new Rectangle());
+							rubyCh.rect.x = rect.x + (int)avgList[0];
+							rubyCh.rect.y = ch1.rect.y;
+							rubyCh.rect.width = rubyWidth;
+							rubyCh.rect.height = ch1.rect.height;
+							rubyCh.setType(LayoutElement.TYPE_RUBY);
+							rubyList.add(rubyCh);
+							ch1.rect.width -= rubyWidth;
+						}
+					}
+				}
+			}
+
+			if (rubyList.isEmpty()) return null;
+			if (elements.isEmpty()) {
+				elements = rubyList;
+				return null;
+			}
+			
+			calcBoundsRect();
+			return rubyList;
+		}
+		
+		public LayoutElement extractRubyOld() {
 			if (elements.size() < 5) return null;
 			if (rect.height < rect.width*3) return null;
 			
