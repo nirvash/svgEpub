@@ -448,6 +448,73 @@ public class LayoutAnalyzer {
 			bottom = top;
 		}
 		
+//		extractTopRightNonbre(elements, top);
+		extractBottomRightNonbre(elements, bottom);
+	}
+
+	private static void extractTopRightNonbre(
+			ArrayList<LayoutElement> elements, Rectangle top) {
+		DoubleArrayList ylist = new DoubleArrayList();
+		for (LayoutElement le : elements) {
+			if (top.intersects(le.rect)) {
+				if (le.y() < top.y + le.width()*3) {
+					ylist.add(le.y());
+				}
+			}
+		}
+		
+		boolean hasNonbre = false;
+		double threshold = calcThreshold(ylist, 1, null, 0.99, false);
+		if (threshold == 0) return;
+		int count = 0;
+		for (LayoutElement le : elements) {
+			if (top.intersects(le.rect)) {
+				if (le.y() < threshold) {
+					count++;
+				}
+			}
+		}
+		if (count > 1) return;
+		
+		for (LayoutElement le : elements) {
+			if (top.intersects(le.rect)) {
+				if (le.y() < threshold) {
+					LayoutElement nonbre = new LayoutElement(0, LayoutElement.TYPE_TEXT_HORIZONTAL);
+					for (int i=le.elements.size()-1; i>=0; i--) {
+						LayoutElement ch = le.elements.get(i);
+						if (ch.rect.getCenterY() < threshold) {
+							nonbre.addChild(ch);
+							le.elements.remove(i);
+						}
+					}
+					if (nonbre.elements.size()>0) {
+						le.calcBoundsRect();
+						elements.add(nonbre);
+						hasNonbre = true;
+					}
+				}
+				break;
+			}
+		}
+		
+		if (hasNonbre) {
+			Rectangle column = null;
+			for (LayoutElement le : elements) {
+				if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+				if (top.intersects(le.rect)) {
+					if (column == null) {
+						column = new Rectangle(le.rect);
+					} else {
+						column.add(le.rect);
+					}
+				}
+			}
+			top.setBounds(column);
+		}
+	}
+	
+	private static void extractBottomRightNonbre(
+			ArrayList<LayoutElement> elements, Rectangle bottom) {
 		DoubleArrayList ylist = new DoubleArrayList();
 		for (LayoutElement le : elements) {
 			if (bottom.intersects(le.rect)) {
@@ -675,6 +742,32 @@ public class LayoutAnalyzer {
 			}
 		}
 	}
+	
+	static void groupYAxis2(List<LayoutElement> group) {
+		for (int i=group.size()-1; i>=0; i--) {
+			LayoutElement l1 = group.get(i);
+			if (l1.getType() == LayoutElement.TYPE_IMAGE) continue;
+			for (int j=i-1; j>=0; j--) {
+				LayoutElement l2 = group.get(j);
+				if (l2.getType() == LayoutElement.TYPE_IMAGE) continue;
+				if ((l2.x() < l1.rect.getCenterX() && l1.rect.getCenterX() < l2.getMaxX()) ||
+					(l1.x() < l2.rect.getCenterX() && l2.rect.getCenterX() < l1.getMaxX())) {
+					double distance;
+					if (l1.getMaxY() < l2.y()) {
+						distance = Math.abs(l2.y() - l1.getMaxY());
+					} else {
+						distance = Math.abs(l1.y() - l2.getMaxY());
+					}
+					
+					if (distance > Math.min(l1.width(), l2.width()) * 1f) continue;
+
+					l2.add(l1);
+					group.remove(i);
+					break;
+				}
+			}
+		}
+	}
 
 	private static boolean overwrapY(Rectangle r1, Rectangle r2, double margin, boolean isChar) {
 		return isChar ? overwrapYChar(r1, r2, margin) : overwrapYLine(r1, r2, margin);
@@ -725,7 +818,7 @@ public class LayoutAnalyzer {
 			}
 		}
 
-		boolean isOverwrap = !(r1.x > r2.getMaxX() || r1.getMaxX() < r2.x);
+		boolean isOverwrap = !(r1.x >= r2.getMaxX() || r1.getMaxX() <= r2.x);
 		if (!isOverwrap) return isOverwrap;
 		
 		Rectangle intersect = r1.intersection(r2);
@@ -1234,6 +1327,11 @@ public class LayoutAnalyzer {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			widths.add(le.width());
 		}
+		if (widths.size()>2) {
+			widths.sort();
+			widths.remove(0);
+			widths.remove(widths.size()-1);
+		}
 
 		double rubyThreshold = calcThreshold(widths, 1, null, 0.7, false);
 		if (rubyThreshold == 0) return rubyThreshold;
@@ -1493,12 +1591,15 @@ public class LayoutAnalyzer {
 		List<LayoutElement> rects = new ArrayList<LayoutElement>();
 		double scale = image_binary.width() / image_source.width();
 		getRects(contours, rects, scale);
-
+		
 		// Union intersected rects
 		mergeRects(rects);
 
 		// Remove small regions
 		removeSmallRects(rects, scale);
+
+		removeOnBorderElement(rects, image_binary.width(), image_binary.height());
+
 
 		// Draw rects
 		Collections.sort(rects, new RectComparator());
@@ -1507,13 +1608,34 @@ public class LayoutAnalyzer {
 		}
 
 		// Grouping
-		getLineElements(rects, group, image_source, doAdjust);
+		mergeCharacterElements(rects, group, image_source, doAdjust);
 
 		storage.release();
 		return true;
 	}
 
-	static void getLineElements(List<LayoutElement> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
+	private static void removeOnBorderElement(List<LayoutElement> rects,
+			int width, int height) {
+		int left = (int)(width * 0.01f);
+		int right = width - left;
+		int top = (int)(height * 0.01f);
+		int bottom = height - top;
+		Rectangle rLeft = new Rectangle(0, 0, left, height);
+		Rectangle rRight = new Rectangle(right,0, left, height);
+		Rectangle rTop = new Rectangle(0, 0, width, top);
+		Rectangle rBottom = new Rectangle(0, bottom, width, top);
+
+		for (int i=rects.size()-1; i>=0; i--) {
+			LayoutElement le = rects.get(i);
+			if (le.width()*le.height() > width*0.04*height*0.04) continue;
+			if (le.rect.intersects(rLeft) || le.rect.intersects(rRight) ||
+				le.rect.intersects(rTop) || le.rect.intersects(rBottom)) {
+				rects.remove(i);
+			}
+		}
+	}
+
+	static void mergeCharacterElements(List<LayoutElement> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
 		for (LayoutElement r : rects) {
@@ -1528,9 +1650,10 @@ public class LayoutAnalyzer {
 		// Group y axis
 		groupYAxis(group, 1.5f, true);
 
-
 		// Vertical line merge
 		if (doAdjust) {
+			groupYAxis2(group);
+
 			groupYAxis(group, 1.5f, false);
 
 			// Group x axis
@@ -1539,7 +1662,7 @@ public class LayoutAnalyzer {
 			groupYAxis(group, 2.0f, false);
 
 			separateRuby(group);
-			
+
 			// Adjust element width
 //			adjustElementWidth(group);
 			
