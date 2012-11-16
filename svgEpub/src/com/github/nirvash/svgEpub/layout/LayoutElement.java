@@ -170,7 +170,7 @@ public class LayoutElement {
 			double th = LayoutAnalyzer.calcThreshold(rightEdges, 1, avgList, limit, true);
 			if (th == 0) return null;
 			if (avgList[1]-avgList[0] < rect.width*0.2) return null;
-			if (rect.width - avgList[0] < rect.width*0.1) return null;
+			if (rect.width - avgList[0] < rect.width*0.3) return null;
 			
 			ArrayList<LayoutElement> rubyList = new ArrayList<LayoutElement>();
 			for (int i=elements.size()-1; i>=0; i--) {

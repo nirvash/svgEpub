@@ -415,7 +415,8 @@ public class LayoutAnalyzer {
 		
 		// Check multi columns
 		ArrayList<Rectangle> columnList = new ArrayList<Rectangle>();
-		LayoutAnalyzer.checkMultiColumns(elements, columnList, rubyThreshold);
+		checkMultiColumns(elements, columnList, rubyThreshold);
+		verifyColumns(elements, columnList);
 		
 		// Align vertical elements
 		LayoutAnalyzer.alignVerticalTextInColumn(elements, columnList);
@@ -601,7 +602,7 @@ public class LayoutAnalyzer {
 				}
 				
 				// í«Ç¢èoÇµÇ≈çsññÇ…ãÛîíÇ™Ç≈Ç´ÇÈÇ±Ç∆Ççló∂
-				if (le.getMaxY() < column.getMaxY() - le.width()*3) {
+				if (le.getMaxY() < column.getMaxY() - le.width()*2) {
 					le.setLF(true);
 				}
 			}
@@ -1271,6 +1272,63 @@ public class LayoutAnalyzer {
 						break;
 					}
 				}
+			}
+		}
+	}
+
+	static void verifyColumns(ArrayList<LayoutElement> elements, 
+			ArrayList<Rectangle> columnList) {
+		for (int i=columnList.size()-1; i>=0; i--) {
+			Rectangle column = columnList.get(i);
+			DoubleArrayList spaces = new DoubleArrayList();
+			LayoutElement prevLe = null;
+			for (LayoutElement le : elements) {
+				if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+				if (!column.intersects(le.rect)) continue;
+				if (prevLe != null) {
+					int lineSpace = prevLe.x() - (int)le.getMaxX(); 
+					if (lineSpace > 0) {
+						spaces.add(lineSpace);
+					}
+				}
+				prevLe = le;
+			}
+			if (spaces.size()<=4) continue;
+			double threshold = calcThreshold(spaces, 1, null, 0.7, false);
+			if (threshold == 0) continue;
+			
+			prevLe = null;
+			Rectangle column1 = null;
+			Rectangle column2 = null;
+			boolean found = false;
+			for (LayoutElement le : elements) {
+				if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+				if (!column.intersects(le.rect)) continue;
+				if (prevLe != null) {
+					int lineSpace = prevLe.x() - (int)le.getMaxX();
+					if (lineSpace > threshold) {
+						found = true;
+					}
+				}
+				if (!found) {
+					if (column1 == null) {
+						column1 = new Rectangle(le.rect);
+					} else {
+						column1.add(le.rect);
+					}
+				} else {
+					if (column2 == null) {
+						column2 = new Rectangle(le.rect);
+					} else {
+						column2.add(le.rect);
+					}
+				}
+				prevLe = le;
+			}
+			
+			if (column1 != null && column2 != null) {
+				column.setBounds(column1);
+				columnList.add(i+1, column2);
 			}
 		}
 	}

@@ -419,8 +419,17 @@ public class Epub {
 			int imageIndex = 0;
 			StringBuffer body = new StringBuffer();
 			boolean inTextBlock = false;
+			LayoutElement prevLine = null;
 			for (LayoutElement le: elements) {
 				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+					if (prevLine != null) {
+						int lineSpace = prevLine.x()-(int)le.getMaxX();
+						if (lineSpace > le.width()*2.5) {
+							body.append("<br/><br/>\n");
+						} else if (lineSpace > le.width()*1.5){
+							body.append("<br/>\n");
+						}
+					}
 					if (!inTextBlock) {
 						body.append(String.format("<span class=\"page%d\">", page));
 						inTextBlock = true;
@@ -431,7 +440,9 @@ public class Epub {
 					if (le.hasLF()) {
 						body.append("<br/>\n");
 					}
+					prevLine = le;
 				} else if (le.getType() == LayoutElement.TYPE_IMAGE) {
+					prevLine = null;
 					if (inTextBlock) {
 						body.append("</span>");
 						inTextBlock = false;
