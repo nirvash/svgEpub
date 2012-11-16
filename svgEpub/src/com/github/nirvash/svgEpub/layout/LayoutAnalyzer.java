@@ -52,6 +52,7 @@ import com.github.nirvash.svgEpub.util.RuntimeUtility;
 
 
 public class LayoutAnalyzer {
+	static int analyzeLevel = 100;
 	static String fontForgePath = "";
 	public static void setFontForgePath(String path) {
 		fontForgePath = path;
@@ -60,6 +61,7 @@ public class LayoutAnalyzer {
 	public static File createFont(IplImage image_source, IplImage image_binary, double scale,
 			ArrayList<LayoutElement> elements, int page) {
 		Profile.setLaptime("createFont");
+		setAnalyzeLevel(100);
 
 		analyzePageLayout(image_source, image_binary, elements, false, scale);
 //		learnGlyphs(image_source, elements);
@@ -390,51 +392,70 @@ public class LayoutAnalyzer {
 
 	static void analyzeLayout(IplImage image_source,
 			ArrayList<LayoutElement> elements, boolean draw, double scale) {
-		// Check horizontal element
-		LayoutAnalyzer.checkTextHorizontal(elements);
-
-		// Check vertical element
-		LayoutAnalyzer.checkTextVertical(elements);
-
-		// Detect column
 		Rectangle textColumn = null;
-		textColumn = getTextColumn(elements, textColumn);
-//		drawRectangle(image_source, textColumn, CvScalar.YELLOW);
-
-		// Check elements in column
-		LayoutAnalyzer.checkTextInColumn(elements, textColumn);
-
-		// Check ruby element
-		double rubyThreshold = LayoutAnalyzer.checkRubyElement(elements);
-
-		// Check ruby element (elements which is next to vertical element)
-		validateRuby(elements, rubyThreshold);
-
-		// Merge vertical lines
-		mergeVerticalLines(elements);
-		
-		// Check multi columns
 		ArrayList<Rectangle> columnList = new ArrayList<Rectangle>();
-		checkMultiColumns(elements, columnList, rubyThreshold);
-		verifyColumns(elements, columnList);
-		
-		// Align vertical elements
-		LayoutAnalyzer.alignVerticalTextInColumn(elements, columnList);
-		
-		// Merge horizontal elements in vertical lines.
-		mergeHorizontalElementsInVerticalLines(elements);
-		
-		// Extract nombre
-		extractNonbre(elements, columnList);
+		try {
+			// Check horizontal element
+			LayoutAnalyzer.checkTextHorizontal(elements);
+			if (analyzeLevel == 10) return;
+	
+			// Check vertical element
+			LayoutAnalyzer.checkTextVertical(elements);
+			if (analyzeLevel == 11) return;
+	
+			// Detect column
+			textColumn = getTextColumn(elements, textColumn);
+			if (analyzeLevel == 12) return;
+	
+			// Check elements in column
+			LayoutAnalyzer.checkTextInColumn(elements, textColumn);
+			if (analyzeLevel == 13) return;
+	
+			// Check ruby element
+			double rubyThreshold = LayoutAnalyzer.checkRubyElement(elements);
+			if (analyzeLevel == 14) return;
+	
+			// Check ruby element (elements which is next to vertical element)
+			validateRuby(elements, rubyThreshold);
+			if (analyzeLevel == 15) return;
+			
+			// Merge vertical lines
+			mergeVerticalLines(elements);
+			if (analyzeLevel == 16) return;
 
-		// checkCharacter
-		LayoutAnalyzer.checkCharacter(elements, scale);
-		
-		// Add control code
-		addControlCode(elements, columnList);
+			textColumn = null;
+			// Check multi columns
+			checkMultiColumns(elements, columnList, rubyThreshold);
+			if (analyzeLevel == 17) return;
+			verifyColumns(elements, columnList);
+			if (analyzeLevel == 18) return;
 
-		if (draw) {
-			drawColumns(image_source, columnList, scale);
+			// Align vertical elements
+			LayoutAnalyzer.alignVerticalTextInColumn(elements, columnList);
+			if (analyzeLevel == 19) return;
+			
+			// Merge horizontal elements in vertical lines.
+			mergeHorizontalElementsInVerticalLines(elements);
+			if (analyzeLevel == 20) return;
+			
+			// Extract nombre
+			extractNonbre(elements, columnList);
+			if (analyzeLevel == 21) return;
+	
+			// checkCharacter
+			checkCharacter(elements, scale);
+			if (analyzeLevel <= 25) return;
+			
+			// Add control code
+			addControlCode(elements, columnList);
+		} finally {
+			if (draw) {
+				if (textColumn != null) {
+					columnList.add(textColumn);
+				}
+
+				drawColumns(image_source, columnList, scale);
+			}
 		}
 	}
 
@@ -675,17 +696,13 @@ public class LayoutAnalyzer {
 					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
 				}
 			} else if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
-				if (le.width() > rubyThreshold) {
-//					le.setType(LayoutElement.TYPE_RUBY);
-				} else {
-					for (LayoutElement vert : elements) {
-						if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-						Rectangle body = new Rectangle(vert.rect);
-						body.width *= 1.1f;
-						if (body.intersects(le.rect) && le.width() < vert.width() * 0.8) {
-							le.setType(LayoutElement.TYPE_RUBY);
-							break;
-						}
+				for (LayoutElement vert : elements) {
+					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+					Rectangle body = new Rectangle(vert.rect);
+					body.width *= 1.1f;
+					if (body.intersects(le.rect) && le.width() < vert.width() * 0.8) {
+						le.setType(LayoutElement.TYPE_RUBY);
+						break;
 					}
 				}
 			}
@@ -1025,9 +1042,14 @@ public class LayoutAnalyzer {
 	static void checkCharacter(ArrayList<LayoutElement> elements, double scale) {
 		// merge horizontal
 		mergeCharHorizontal(elements);
+		if (analyzeLevel == 22) return;
 
 		alignCharacterHeight(elements, scale);
+		if (analyzeLevel == 23) return;
+		
 		alignCharacterWidth(elements);
+		if (analyzeLevel == 24) return;
+
 		normalizeCharacterSize(elements);
 	}
 
@@ -1163,9 +1185,11 @@ public class LayoutAnalyzer {
 						r0 = newElem;
 						index++;
 					} else if (distY > le.width()*0.2 && r1.height()+distY*0.8<charHeight) {
-						// Adjust blank for characters (‚Ö,‚Â)
-						r1.rect.y -= distY*0.8;
-						r1.rect.height += distY*0.8;
+						if (r2.y() - r1.getMaxY() > le.rect.width * 0.2) {
+							// Adjust blank for characters (‚Ö,‚Â)
+							r1.rect.y -= distY*0.8;
+							r1.rect.height += distY*0.8;
+						}
 					}
 				}
 				
@@ -1250,11 +1274,20 @@ public class LayoutAnalyzer {
 			
 			// Align the last character in the line.
 			if (r1 != null) {
-				if (r0 != null && r1.y() - r0.getMaxY() > 0) {
-					r1.rect.add(new Point(r1.x(), (int)r0.getMaxY()));
-				}
 				if (r1.height() < charHeight) {
-					r1.rect.height += charHeight - r1.height();
+					int diff = charHeight - r1.height();
+					if (r0 != null && r1.y() - r0.getMaxY() > 0) {
+						int topMargin = r1.y() - (int)r0.getMaxY();
+						if (topMargin < diff) {
+							diff -= topMargin;
+							r1.rect.add(new Point(r1.x(), (int)r0.getMaxY()));
+						} else {
+							int offset = topMargin-diff;
+							diff = 0;
+							r1.rect.add(new Point(r1.x(), (int)r0.getMaxY()+offset));
+						}
+					}
+					r1.rect.height += diff;
 					le.rect.add(r1.rect);
 				}
 			}
@@ -1471,7 +1504,6 @@ public class LayoutAnalyzer {
 		}
 		if (widths.size()>2) {
 			widths.sort();
-			widths.remove(0);
 			widths.remove(widths.size()-1);
 		}
 
@@ -1725,34 +1757,53 @@ public class LayoutAnalyzer {
 		//		cvSaveImage("test_binary.png", image_binary);
 		// Extract counters
 		CvMemStorage storage = CvMemStorage.create();
-		CvSeq contours = new CvContour();
-		int count = cvFindContours(image_binary, storage, contours, Loader.sizeof(CvContour.class), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
-		if (count > 10000) return false; // maybe image.
-		//		drawContours(image_source, contours, storage, CvScalar.RED);
+		try {
+			CvSeq contours = new CvContour();
+			int count = cvFindContours(image_binary, storage, contours, Loader.sizeof(CvContour.class), CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+			if (count > 10000) return false; // maybe image.
+			
+			if (analyzeLevel == 1) {
+				drawContours(image_source, contours, storage, CvScalar.RED);
+				return false;
+			}
+	
+			List<LayoutElement> rects = new ArrayList<LayoutElement>();
+			double scale = image_binary.width() / image_source.width();
+			getRects(contours, rects, scale);
+			if (analyzeLevel == 2) {
+				drawLineElements(image_source, rects, scale, 1, CvScalar.CYAN, null);
+				return false;
+			}
+			
+			// Union intersected rects
+			mergeRects(rects);
+			if (analyzeLevel == 3) {
+				drawLineElements(image_source, rects, scale, 1, CvScalar.CYAN, null);
+				return false;
+			}
+	
+			// Remove small regions
+			removeSmallRects(rects, scale);
+	
+			removeOnBorderElement(rects, image_binary.width(), image_binary.height());
+	
+	
+			// Draw rects
+			Collections.sort(rects, new RectComparator());
+			if (drawResult) {
+	//			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
+			}
+	
+			// Grouping
+			createLineElements(rects, group, image_source, doAdjust);
+			if (analyzeLevel <= 9) {
+				drawLineElements(image_source, rects, scale, 1, CvScalar.CYAN, null);
+				return false;
+			}
 
-		List<LayoutElement> rects = new ArrayList<LayoutElement>();
-		double scale = image_binary.width() / image_source.width();
-		getRects(contours, rects, scale);
-		
-		// Union intersected rects
-		mergeRects(rects);
-
-		// Remove small regions
-		removeSmallRects(rects, scale);
-
-		removeOnBorderElement(rects, image_binary.width(), image_binary.height());
-
-
-		// Draw rects
-		Collections.sort(rects, new RectComparator());
-		if (drawResult) {
-//			drawLineElements(image_source, rects, scale, 2, CvScalar.CYAN, CvScalar.GREEN);
+		} finally {
+			storage.release();
 		}
-
-		// Grouping
-		mergeCharacterElements(rects, group, image_source, doAdjust);
-
-		storage.release();
 		return true;
 	}
 
@@ -1777,7 +1828,7 @@ public class LayoutAnalyzer {
 		}
 	}
 
-	static void mergeCharacterElements(List<LayoutElement> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
+	static void createLineElements(List<LayoutElement> rects, List<LayoutElement> group, IplImage image, boolean doAdjust) {
 		group.clear();
 		int i=0;
 		for (LayoutElement r : rects) {
@@ -1788,9 +1839,11 @@ public class LayoutAnalyzer {
 
 		// Check images
 		checkImageElement(group, image);
+		if (analyzeLevel == 4) return;
 
 		// Group y axis
 		groupYAxis(group, 1.5f, true);
+		if (analyzeLevel == 5) return;
 
 		// Vertical line merge
 		if (doAdjust) {
@@ -1811,14 +1864,18 @@ public class LayoutAnalyzer {
 		} else {
 			// rough layout analysis
 			groupYAxis(group, 1.5f, false);
+			if (analyzeLevel == 6) return;
 
 			// Group x axis
 			groupXAxis(group);
+			if (analyzeLevel == 7) return;
 
 			groupYAxis(group, 2.0f, false);
+			if (analyzeLevel == 8) return;
 
 			// separate ruby
-//			groupSeparateRuby(group);
+			separateRuby(group);
+			if (analyzeLevel == 9) return;
 		}
 	}
 
@@ -1875,11 +1932,9 @@ public class LayoutAnalyzer {
 		int i = 0;
 		while (contours != null && !contours.isNull()) {
 			if (contours.elem_size() > 0) {
-				/*
-	                CvSeq points = cvApproxPoly(contours, Loader.sizeof(CvContour.class),
-	                        storage, CV_POLY_APPROX_DP, cvContourPerimeter(contours)*0.02, 0);
-	                cvDrawContours(image_out, points, color, color, -1, 1, CV_AA);
-				 */                
+                CvSeq points = cvApproxPoly(contours, Loader.sizeof(CvContour.class),
+                        storage, CV_POLY_APPROX_DP, cvContourPerimeter(contours)*0.02, 0);
+                cvDrawContours(image_out, points, color, color, -1, 1, CV_AA);
 
 				/*            	
 	            	CvRect cr = cvBoundingRect(contours, 1);
@@ -1953,6 +2008,10 @@ public class LayoutAnalyzer {
 			int t2 = cr2.y();
 			return t1 - t2;
 		}
+	}
+
+	public static void setAnalyzeLevel(int level) {
+		analyzeLevel = level;		
 	}	
 
 }

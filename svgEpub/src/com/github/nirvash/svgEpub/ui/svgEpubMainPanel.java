@@ -2,6 +2,7 @@ package com.github.nirvash.svgEpub.ui;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -30,9 +31,11 @@ import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
 import javax.swing.JSplitPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.ProgressMonitor;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.event.ListSelectionListener;
@@ -101,6 +104,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	private JButton jButtonAutoClip;
 	private JButton jButtonClipTemplate;
 	private JButton jButtonLayoutAnalyze;
+	private JSpinner jSpinnerAnlyzeLevel;
 
 	private static final String PREFERRED_LOOK_AND_FEEL = "com.sun.java.swing.plaf.nimbus.NimbusLookAndFeel";
 	static public CustomProperties getProperty() {
@@ -155,6 +159,14 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		}
 		bar.add(menuEdit);
 		return bar;
+	}
+	
+	private JSpinner getJSpinnerAnalyzeLevel() {
+		if (jSpinnerAnlyzeLevel == null) {
+			SpinnerNumberModel model = new SpinnerNumberModel(26, 0, 100, 1);
+			jSpinnerAnlyzeLevel = new JSpinner(model);
+		}
+		return jSpinnerAnlyzeLevel;
 	}
 
 	private JButton getJButtonLayoutAnalyze() {
@@ -462,6 +474,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			jPanelNorth.add(getJButtonAutoClip());
 			jPanelNorth.add(getJButtonClipTemplate());
 			jPanelNorth.add(getJButtonLayoutAnalyze());
+			jPanelNorth.add(getJSpinnerAnalyzeLevel());
 			jPanelNorth.add(getJPanel0());
 			jPanelNorth.add(getJButtonConfig());
 		}
@@ -654,6 +667,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			itemSelectionListener.updateItem(jListFile.getSelectedIndex());
 		} else if (e.getActionCommand().equals("AnalyzeLayout")) {
 			if (jListFile.isSelectionEmpty()) return;
+			LayoutAnalyzer.setAnalyzeLevel((Integer)jSpinnerAnlyzeLevel.getValue());
 			int index = jListFile.getSelectedIndex();
 			ListItem item = (ListItem)jListFile.getSelectedValue();
 			item.setLayoutAnalyze(true);
