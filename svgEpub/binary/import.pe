@@ -43,17 +43,12 @@ SetWidth(500)
 Select(0u3000)
 SetWidth(1000)
 
-
-
-
 SelectAll()
-RoundToInt()
-
+ScaleToEm(2048)
+Scale(90)
 RemoveOverlap()
-
-Simplify()
-Simplify()
-Simplify()
+Simplify(128+32+16+8,1.5)
+RoundToInt()
 
 # ----------------------------------------
 # save

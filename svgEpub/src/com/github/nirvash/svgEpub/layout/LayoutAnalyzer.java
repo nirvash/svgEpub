@@ -443,9 +443,11 @@ public class LayoutAnalyzer {
 		if (columnList.size() == 2) {
 			top = columnList.get(0);
 			bottom = columnList.get(1);
-		} else {
+		} else if (columnList.size() == 1) {
 			top = columnList.get(0);
 			bottom = top;
+		} else {
+			return;
 		}
 		
 //		extractTopRightNonbre(elements, top);
@@ -592,12 +594,14 @@ public class LayoutAnalyzer {
 			ArrayList<Rectangle> columnList) {
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-			for (Rectangle re : columnList) {
-				if (!re.intersects(le.rect)) continue; 
+			for (Rectangle column : columnList) {
+				if (!column.intersects(le.rect)) continue; 
 				for (LayoutElement ch : le.elements) {
 					ch.setType(LayoutElement.TYPE_CHARACTER);
 				}
-				if (le.getMaxY() < re.getMaxY() - le.width()) {
+				
+				// ’Ç‚¢o‚µ‚Ås––‚É‹ó”’‚ª‚Å‚«‚é‚±‚Æ‚ðl—¶
+				if (le.getMaxY() < column.getMaxY() - le.width()*3) {
 					le.setLF(true);
 				}
 			}
@@ -668,6 +672,16 @@ public class LayoutAnalyzer {
 				}
 				if (!found) {
 					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
+				}
+			} else if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+				for (LayoutElement vert : elements) {
+					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+					Rectangle body = new Rectangle(vert.rect);
+					body.width *= 1.1f;
+					if (body.intersects(le.rect) && le.width() < vert.width() * 0.8) {
+						le.setType(LayoutElement.TYPE_RUBY);
+						break;
+					}
 				}
 			}
 		}
@@ -866,6 +880,15 @@ public class LayoutAnalyzer {
 
 		return true;
 	}
+	
+	private static boolean overwrapXSimple(Rectangle r1, Rectangle r2) {
+		if (r1.intersects(r2)) return true;
+
+		boolean isOverwrap = !(r1.y > r2.getMaxY() || r1.getMaxY() < r2.y);
+		if (!isOverwrap) return isOverwrap;
+		return true;
+	}
+
 
 	private static boolean overwrapX(Rectangle r1, Rectangle r2, boolean verticalLimitaion) {
 		if (verticalLimitaion && (r1.height > r1.width*3 || r2.height > r2.width*3)) return false;
@@ -1084,38 +1107,62 @@ public class LayoutAnalyzer {
 		double threshold = calcThreshold(hlist, 1, avglist, 0.7, false);
 		double avgHeight = Math.max(avglist[0], avglist[1]);
 
-		int charHeight = 0;
+		int charHeightGlobal = 0;
 		int limit = Math.max(2,(int)(hlist.size() * 0.1f));
 		if (limit < hlist.size()) {
 			hlist.sort();
-			charHeight = (int)hlist.get(hlist.size()-limit);
+			charHeightGlobal = (int)hlist.get(hlist.size()-limit);
 		} else {
-			charHeight = (int)hlist.get(hlist.size()-1);
+			charHeightGlobal = (int)hlist.get(hlist.size()-1);
 		}
 
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			if (le.elements.size()==0) continue;
-			Collections.sort(le.elements, new RectComparator());
+			int charHeight = charHeightGlobal;
+			if (charHeight < le.width() * 0.8f || charHeight > le.width() * 1.2f) {
+				charHeight = le.width();
+			}
+			Collections.sort(le.elements, new CharacterInLineComparator());
 			LinkedList<LayoutElement> elems = new LinkedList<LayoutElement>(le.elements);
-			Iterator<LayoutElement> itr = elems.iterator();
+
+			int index = 0;
 			LayoutElement r0 = null;
-			LayoutElement r1 = itr.next();
+			LayoutElement r1 = elems.get(index);
 			LayoutElement r2 = null;
 			if (r1.y() < le.y() + avgHeight) {
 				r1.rect.add(le.rect.getLocation());
 			} else {
-				// insert space character
-				int height = Math.min(charHeight, r1.y() - le.y());
-				Rectangle r = new Rectangle(le.x(), le.y(), le.width(), height);
-				LayoutElement newElem = new LayoutElement(r);
-				elems.addFirst(newElem);
-				itr = elems.iterator();
-				r1 = itr.next();
+				int distY = r1.y() - le.y();
+				if (distY < charHeight*0.9) {
+					int height = Math.min(charHeight, distY);
+					
+					// insert space character
+					Rectangle r = new Rectangle(le.x(), le.y(), le.width(), height);
+					LayoutElement newElem = new LayoutElement(r);
+					elems.addFirst(newElem);
+					r1 = elems.get(index);
+				}
 			}
+			index++;
 
-			while (itr.hasNext()) {
-				r2 = itr.next();
+			for (;index < elems.size(); index++) {
+				r2 = elems.get(index);
+				if (r0 != null) {
+					int distY = r1.y() - (int)r0.getMaxY();
+					if (distY > charHeight*0.9) {
+						// insert space character
+						Rectangle r = new Rectangle(le.x(), (int)r0.getMaxY(), le.width(), charHeight);
+						LayoutElement newElem = new LayoutElement(r);
+						elems.add(index-1, newElem);
+						r0 = newElem;
+						index++;
+					} else if (distY > le.width()*0.2 && r1.height()+distY*0.8<charHeight) {
+						// Adjust blank for characters (‚Ö,‚Â)
+						r1.rect.y -= distY*0.8;
+						r1.rect.height += distY*0.8;
+					}
+				}
 
 				boolean lastChar = false;
 				boolean merged = false;
@@ -1123,15 +1170,15 @@ public class LayoutAnalyzer {
 					merged = false;
 					if (r1.height() < charHeight) {
 						if (r2.y() - r1.getMaxY() > charHeight/2) break; // Too far to merge
-						if (r2.getMaxY() - r1.y() <= charHeight+1*scale) {
+						if (r2.getMaxY() - r1.y() <= charHeight+2*scale) {
 							merged = true;
 							r1.add(r2);
-							itr.remove();
-							if (!itr.hasNext()) {
+							elems.remove(index);
+							if (index >= elems.size()) {
 								lastChar = true;
 								break;
 							}
-							r2 = itr.next();
+							r2 = elems.get(index);
 						}
 					}
 				} while (merged);
@@ -1187,7 +1234,7 @@ public class LayoutAnalyzer {
 				LayoutElement ch1 = le.elements.get(i);
 				for (int j=i-1; j>=0; j--) {
 					LayoutElement ch2 = le.elements.get(j);
-					if (overwrapX(ch1.rect, ch2.rect, false)) {
+					if (overwrapXSimple(ch1.rect, ch2.rect)) {
 						ch2.add(ch1);
 						le.elements.remove(i);
 						break;
@@ -1215,7 +1262,9 @@ public class LayoutAnalyzer {
 
 		double threshold = calcThreshold(ylist, 1, null, 0.7, false);
 		if (threshold == 0) {
-			columnList.add(singleColumn);
+			if (singleColumn != null) {
+				columnList.add(singleColumn);
+			}
 			return;
 		}
 
@@ -1784,6 +1833,15 @@ public class LayoutAnalyzer {
 			}
 			int t1 = cr1.y() + v1;
 			int t2 = cr2.y() + v2;
+			return t1 - t2;
+		}
+	}	
+
+	public static class CharacterInLineComparator implements Comparator<LayoutElement> {
+		@Override
+		public int compare(LayoutElement cr1, LayoutElement cr2) {
+			int t1 = cr1.y();
+			int t2 = cr2.y();
 			return t1 - t2;
 		}
 	}	
