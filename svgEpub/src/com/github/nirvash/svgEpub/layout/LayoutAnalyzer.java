@@ -1163,6 +1163,17 @@ public class LayoutAnalyzer {
 						r1.rect.height += distY*0.8;
 					}
 				}
+				
+				// separate too large character
+				while (r1.height() > charHeight*1.2f) {
+					Rectangle r = new Rectangle(r1.x(), r1.y(), r1.width(), charHeight);
+					LayoutElement newElem = new LayoutElement(r);
+					elems.add(index-1, newElem);
+					r0 = newElem;
+					r1.rect.y += charHeight;
+					r1.rect.height -= charHeight;
+					index++;
+				}
 
 				boolean lastChar = false;
 				boolean merged = false;
@@ -1179,6 +1190,15 @@ public class LayoutAnalyzer {
 								break;
 							}
 							r2 = elems.get(index);
+						} else if (r1.height() < charHeight*0.7) {
+							// following character is too large.
+							if (r2.height() > charHeight*1.05f) {
+								int diff = charHeight - (r2.y() - r1.y());
+								Rectangle r2Top = new Rectangle(r2.x(), r2.y(), r2.width(), diff);
+								r2.rect.y += diff;
+								r2.rect.height -= diff;
+								r1.rect.add(r2Top);
+							}
 						}
 					}
 				} while (merged);
@@ -1212,6 +1232,17 @@ public class LayoutAnalyzer {
 				r1 = r2;
 			}
 
+			// separate too large character
+			while (r1.height() > charHeight*1.2f) {
+				Rectangle r = new Rectangle(r1.x(), r1.y(), r1.width(), charHeight);
+				LayoutElement newElem = new LayoutElement(r);
+				elems.add(index-1, newElem);
+				r0 = newElem;
+				r1.rect.y += charHeight;
+				r1.rect.height -= charHeight;
+				index++;
+			}
+			
 			// Align the last character in the line.
 			if (r1 != null) {
 				if (r0 != null && r1.y() - r0.getMaxY() > 0) {
