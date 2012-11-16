@@ -192,7 +192,7 @@ public class Epub {
 						File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, scale, elements, page);
 						in.close();
 						String fontPath = String.format("font/font%d.ttf", page);
-						if (fontFile.exists()) {
+						if (fontFile.exists() && elements.size()>0) {
 							FileInputStream fontStream = new FileInputStream(fontFile);
 							book.getResources().add(new Resource(fontStream, fontPath));
 							page = createReflowPage(book, page, template, reflowPage, fontPath, elements, image_source, scale);

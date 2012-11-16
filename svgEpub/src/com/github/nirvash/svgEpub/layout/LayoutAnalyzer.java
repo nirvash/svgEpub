@@ -408,7 +408,7 @@ public class LayoutAnalyzer {
 		double rubyThreshold = LayoutAnalyzer.checkRubyElement(elements);
 
 		// Check ruby element (elements which is next to vertical element)
-		validateRuby(elements);
+		validateRuby(elements, rubyThreshold);
 
 		// Merge vertical lines
 		mergeVerticalLines(elements);
@@ -647,7 +647,7 @@ public class LayoutAnalyzer {
 		}		
 	}
 
-	static void validateRuby(ArrayList<LayoutElement> elements) {
+	static void validateRuby(ArrayList<LayoutElement> elements, double rubyThreshold) {
 		for (LayoutElement le : elements) {
 			if (le.getType() == LayoutElement.TYPE_UNKNOWN) {
 				for (LayoutElement vert : elements) {
@@ -664,7 +664,7 @@ public class LayoutAnalyzer {
 				for (LayoutElement vert : elements) {
 					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 					Rectangle body = new Rectangle(vert.rect);
-					body.width *= 1.2f;
+					body.width *= 1.3f;
 					if (body.intersects(le.rect)) {
 						le.setType(LayoutElement.TYPE_RUBY);
 						found = true;
@@ -675,13 +675,17 @@ public class LayoutAnalyzer {
 					le.setType(LayoutElement.TYPE_TEXT_VERTICAL);
 				}
 			} else if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
-				for (LayoutElement vert : elements) {
-					if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
-					Rectangle body = new Rectangle(vert.rect);
-					body.width *= 1.1f;
-					if (body.intersects(le.rect) && le.width() < vert.width() * 0.8) {
-						le.setType(LayoutElement.TYPE_RUBY);
-						break;
+				if (le.width() > rubyThreshold) {
+//					le.setType(LayoutElement.TYPE_RUBY);
+				} else {
+					for (LayoutElement vert : elements) {
+						if (vert.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+						Rectangle body = new Rectangle(vert.rect);
+						body.width *= 1.1f;
+						if (body.intersects(le.rect) && le.width() < vert.width() * 0.8) {
+							le.setType(LayoutElement.TYPE_RUBY);
+							break;
+						}
 					}
 				}
 			}
