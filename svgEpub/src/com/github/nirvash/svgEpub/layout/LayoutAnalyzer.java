@@ -2,7 +2,6 @@ package com.github.nirvash.svgEpub.layout;
 
 import com.googlecode.javacpp.Loader;
 import com.googlecode.javacpp.FloatPointer;
-import com.googlecode.javacv.cpp.opencv_core.IplImage;
 import com.googlecode.javacv.cpp.opencv_core.*;
 import com.googlecode.javacv.cpp.opencv_nonfree.*;
 import com.googlecode.javacv.cpp.opencv_features2d.*;
@@ -43,6 +42,8 @@ import cern.colt.list.DoubleArrayList;
 import cern.jet.stat.Descriptive;
 
 import com.github.nirvash.svgEpub.Epub;
+import com.github.nirvash.svgEpub.Ocr;
+import com.github.nirvash.svgEpub.Ocr.OcrResult;
 import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.util.ImageUtility;
 import com.github.nirvash.svgEpub.util.PathUtil;
@@ -73,14 +74,66 @@ public class LayoutAnalyzer {
 		Profile.setLaptime("createFont (end)");
 		return fontFile;
 	}
+	
+	public static void createBoxImage(IplImage image_source, IplImage image_binary,
+			ArrayList<LayoutElement> elements, double scale) {
+		ImageUtility.binalize(image_source, image_binary, false);
+		
+		setAnalyzeLevel(100);
+		analyzePageLayout(image_source, image_binary, elements, false, scale);
 
+		CvSize trainSize = new CvSize(1024, 1024);
+		IplImage trainImage = cvCreateImage( trainSize, IPL_DEPTH_8U, 3);
+		cvSet(trainImage, cvScalarAll(255));
+
+		int x = 0;
+		int y = 0;
+		int maxHeight = 0;
+		for (LayoutElement le : elements) {
+			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
+			for (LayoutElement r : le.elements) {
+				if (r.getType() != LayoutElement.TYPE_CHARACTER) continue;
+				CvRect rect = toCvRect(r.rect, scale);
+				cvSetImageROI(image_source, rect);
+
+				if (x + rect.width() > 1024) {
+					x = 0;
+					y += maxHeight + 20;
+					maxHeight = rect.height();
+				}
+				maxHeight = Math.max(maxHeight, rect.height());
+				if (y + rect.height() > 1024) break;
+				
+				CvRect dest = new CvRect(x, y, rect.width(), rect.height());
+				cvSetImageROI(trainImage, dest);
+				x += rect.width() + 20;
+				
+				cvCopy(image_source, trainImage);
+			}
+		}
+	
+		cvResetImageROI(trainImage);
+		cvSaveImage("train.png", trainImage);
+		
+		cvReleaseImage(trainImage);
+	}
+
+	@SuppressWarnings("unused")
 	private static File saveFont(IplImage image_source, IplImage image_binary2,
 			ArrayList<LayoutElement> elements, String fontPath, double scaleIn) {
 		String ext_in = "bmp";
 		String ext_out = "svg";
+		
+		Ocr ocr = null;
+//		ocr = new Ocr();
+		if (ocr != null) {
+			ocr.init();
+		}
+		
+		HashMap<Integer, Boolean> fontMap = new HashMap<Integer, Boolean>();
 
 		Profile.setLaptime("binalize");
-		double scale = 4.0;
+		double scale = 2.0;
 		CvSize targetSize = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( targetSize, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
@@ -92,9 +145,9 @@ public class LayoutAnalyzer {
 		File inputFile = new File(inputPath);
 		if (inputFile.exists()) inputFile.delete();
 		inputFile.mkdirs();
-
+		
 		Profile.setLaptime("potrace");
-		int index = 0x3400;
+		int index = 0xAC08;
 		for (LayoutElement le : elements) {
 			if (le.getType() != LayoutElement.TYPE_TEXT_VERTICAL) continue;
 			for (LayoutElement r : le.elements) {
@@ -110,25 +163,45 @@ public class LayoutAnalyzer {
 				BufferedImage bImageBinary = new BufferedImage(bImage.getWidth(), bImage.getHeight(), BufferedImage.TYPE_BYTE_BINARY);
 				Graphics2D g = bImageBinary.createGraphics();
 				g.drawImage(bImage, 0, 0, null);
-
-				String charBitmapFilename = String.format("%su%04x.%s", inputPath, index, ext_in);
-				File charBitmapFile = new File(charBitmapFilename);
-				try {
-					ImageIO.write(bImageBinary, ext_in, charBitmapFile);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-				cvReleaseImage(image_char);
 				
-				String svgFilename = String.format("%su%04x.%s", inputPath, index, ext_out);
-				File svgFile = Epub.convertToSvg(charBitmapFile, svgFilename, new Rectangle(bImage.getWidth(), bImage.getHeight()));
-				svgFile.deleteOnExit();
-				charBitmapFile.delete();
+				int code = index;
+				if (ocr != null) {
+					OcrResult ret = ocr.doOcr(bImageBinary);
+					if (ret.confidence > 60) {
+						int tmpCode = ret.getCodePoint();
+						if (tmpCode != 0 && tmpCode >= 0x2000) {
+							code = tmpCode;
+						}
+					}
+				}
+				
+				if (code == index) index++;
+				if (!fontMap.containsKey(code)) {
+					fontMap.put(code, true);
+	
+					String charBitmapFilename = String.format("%su%04x.%s", inputPath, code, ext_in);
+					File charBitmapFile = new File(charBitmapFilename);
+					try {
+						ImageIO.write(bImageBinary, ext_in, charBitmapFile);
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+	
+					String svgFilename = String.format("%su%04x.%s", inputPath, code, ext_out);
+					File svgFile = Epub.convertToSvg(charBitmapFile, svgFilename, new Rectangle(bImage.getWidth(), bImage.getHeight()));
+					svgFile.deleteOnExit();
+					//charBitmapFile.delete();
+				}
 
-				r.setCodePoint(index);
-				r.setText(new String(Character.toChars(index)));
-				index++;
+				cvReleaseImage(image_char);
+				r.setCodePoint(code);
+				r.setText(new String(Character.toChars(code)));
 			}
+		}
+	
+		if (ocr != null) {
+			ocr.release();
+			ocr = null;
 		}
 		
 		cvReleaseImage(image_binary);
@@ -622,7 +695,7 @@ public class LayoutAnalyzer {
 					ch.setType(LayoutElement.TYPE_CHARACTER);
 				}
 				
-				// í«Ç¢èoÇµÇ≈çsññÇ…ãÛîíÇ™Ç≈Ç´ÇÈÇ±Ç∆Ççló∂
+				// ÔøΩ«ÇÔøΩÔøΩoÔøΩÔøΩÔøΩ≈çsÔøΩÔøΩÔøΩ…ãÛîíÇÔøΩÔøΩ≈ÇÔøΩÔøΩÈÇ±ÔøΩ∆ÇÔøΩÔøΩlÔøΩÔøΩ
 				if (le.getMaxY() < column.getMaxY() - le.width()*2) {
 					le.setLF(true);
 				}
@@ -633,7 +706,7 @@ public class LayoutAnalyzer {
 
 	private static void mergeHorizontalElementsInVerticalLines(
 			ArrayList<LayoutElement> elements) {
-		// merge character parts (Éj, éO, Ç§, etc.)
+		// merge character parts (ÔøΩj, ÔøΩO, ÔøΩÔøΩ, etc.)
 		for (int i=elements.size()-1; i>=0; i--) {
 			LayoutElement le1 = elements.get(i);
 			if (le1.getType() != LayoutElement.TYPE_TEXT_HORIZONTAL) continue;
@@ -1186,7 +1259,7 @@ public class LayoutAnalyzer {
 						index++;
 					} else if (distY > le.width()*0.2 && r1.height()+distY*0.8<charHeight) {
 						if (r2.y() - r1.getMaxY() > le.rect.width * 0.2) {
-							// Adjust blank for characters (Ç÷,Ç¬)
+							// Adjust blank for characters (ÔøΩÔøΩ,ÔøΩÔøΩ)
 							r1.rect.y -= distY*0.8;
 							r1.rect.height += distY*0.8;
 						}
@@ -1518,7 +1591,7 @@ public class LayoutAnalyzer {
 			}
 		}
 		
-		// merge rubys (for cases ÇÕ,ÇØ, Ç…, etc.)
+		// merge rubys (for cases ÔøΩÔøΩ,ÔøΩÔøΩ, ÔøΩÔøΩ, etc.)
 		for (int i=elements.size()-1; i>=0; i--) {
 			LayoutElement le1 = elements.get(i);
 			if (le1.getType() != LayoutElement.TYPE_RUBY) continue;

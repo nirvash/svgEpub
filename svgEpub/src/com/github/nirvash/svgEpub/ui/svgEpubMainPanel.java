@@ -50,6 +50,7 @@ import com.github.nirvash.svgEpub.clip.ClipTemplate;
 import com.github.nirvash.svgEpub.layout.LayoutAnalyzer;
 import com.github.nirvash.svgEpub.list.BookListModel;
 import com.github.nirvash.svgEpub.list.FileDropHandler;
+import com.github.nirvash.svgEpub.list.FileItem;
 import com.github.nirvash.svgEpub.list.FileRenderer;
 import com.github.nirvash.svgEpub.list.ItemSelectionListener;
 import com.github.nirvash.svgEpub.list.ListClipDropHandler;
@@ -140,13 +141,14 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		
 		String workingDir = System.getProperty("user.dir");
 		System.setProperty("jna.library.path", workingDir);
-		
-
 	}
 	
 	String[] menuEditItemTitle = {"Select two-page spread"};
 	String[] menuEditItemAction = {"SelectSpread"};
 	
+	String[] menuTestItemTitle = {"OCR", "Create box file"};
+	String[] menuTestItemAction = {"OCR", "CreateBoxFile"};
+
 	private JMenuBar createMenuBar() {
 		JMenuBar bar = new JMenuBar();
 		JMenu menuEdit = new JMenu("Edit");
@@ -158,6 +160,17 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			menuEdit.add(item);
 		}
 		bar.add(menuEdit);
+		
+		JMenu menuTest= new JMenu("Test");
+		for (int i=0; i<menuTestItemTitle.length; i++) {
+			JMenuItem item = new JMenuItem();
+			item.setText(menuTestItemTitle[i]);
+			item.setActionCommand(menuTestItemAction[i]);
+			item.addActionListener(this);
+			menuTest.add(item);
+		}
+		bar.add(menuTest);
+		
 		return bar;
 	}
 	
@@ -232,12 +245,6 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			menuItem2.setActionCommand("PasteClip");
 			menuItem2.addActionListener(this);
 			jListFilePopupMenu.add(menuItem2);
-/*			
-			JMenuItem menuItem3 = new JMenuItem("OCR");
-			menuItem3.setActionCommand("OCR");
-			menuItem3.addActionListener(this);
-			jListFilePopupMenu.add(menuItem3);
-*/
 		}
 		return jListFilePopupMenu;
 	}
@@ -273,7 +280,7 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 	class Shutdown extends Thread {
 		public void run() {
 			if (svgCanvas != null) {
-				svgCanvas.setURI(null);
+				svgCanvas.finish();
 			}
 		}
 	}
@@ -636,7 +643,10 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			int index = jListFile.getSelectedIndex();
 			if (index == -1) return;
 			ListItem item = (ListItem) jListFile.getModel().getElementAt(index);
-			Ocr.test(item);
+			Ocr ocr = new Ocr();
+			ocr.init();
+			ocr.test(item);
+			ocr.release();
 		} else if (e.getActionCommand().equals("RemoveClip")) {
 			if (jListFile.isSelectionEmpty()) return;
 			if (jListClip.isSelectionEmpty()) return;
@@ -715,6 +725,11 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 				indicies[i] = selectedIndex.get(i);
 			}
 			jListFile.setSelectedIndices(indicies);
+		} else if (e.getActionCommand().equals("CreateBoxFile")) {
+			if (jListFile.isSelectionEmpty()) return;
+			ListItem item = (ListItem)jListFile.getSelectedValue();
+			LayoutAnalyzer.setFontForgePath(properties.getProperty("fontforge_path", ""));
+			Ocr.createBoxFile(item);
 		}
 
 	}

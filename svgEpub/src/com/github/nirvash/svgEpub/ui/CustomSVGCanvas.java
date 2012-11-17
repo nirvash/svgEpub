@@ -19,6 +19,7 @@ import org.apache.batik.dom.svg.SAXSVGDocumentFactory;
 import org.apache.batik.dom.svg.SVGDOMImplementation;
 import org.apache.batik.dom.svg.SVGOMPoint;
 import org.apache.batik.dom.util.XLinkSupport;
+import org.apache.batik.ext.awt.image.spi.ImageTagRegistry;
 import org.apache.batik.script.rhino.RhinoInterpreter.ArgumentsBuilder;
 import org.apache.batik.swing.JSVGCanvas;
 import org.apache.batik.swing.gvt.AbstractPanInteractor;
@@ -57,8 +58,6 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 	private OnDownAction downAction = new OnDownAction();
 	private OnOverAction overAction = new OnOverAction();
 	
-	private int symbolMargin = 50;
-
 
 	public class OnOverAction implements EventListener {
 		@Override
@@ -309,6 +308,13 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		if (clipRect == null) {
 			clipRect = imageRect;
 		}
+
+		ImageTagRegistry.getRegistry().flushCache();
+		if (this.getSVGDocument() != null) {
+			this.flush();
+			this.flushImageCache();
+			this.setDocument(null);
+		}
 		
 		Document doc = createDocument(clipRect, imageRect, item);
 		super.setDocument(doc);
@@ -320,6 +326,14 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		if (clipRect == null) {
 			clipRect = svgRect;
 		}
+		
+		ImageTagRegistry.getRegistry().flushCache();
+		if (this.getSVGDocument() != null) {
+			this.flush();
+			this.flushImageCache();
+			this.setDocument(null);
+		}
+
 		Document doc = createDocument(clipRect, svgRect, item);
 		super.setDocument(doc);
 	}
@@ -498,6 +512,16 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 
 	public void setPreview(boolean preview) {
 		mPreview = preview;
+	}
+
+	public void finish() {
+		ImageTagRegistry.getRegistry().flushCache();
+		if (this.getSVGDocument() != null) {
+			this.setVisible(false);
+			this.flushImageCache();
+			this.setDocument(null);
+			this.setSVGDocument(null);
+		}
 	}
 
 
