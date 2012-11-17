@@ -189,18 +189,30 @@ public class Epub {
 						CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 						IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
 						
-						File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, scale, elements, page);
-						in.close();
-						String fontPath = String.format("font/font%d.ttf", page);
-						if (fontFile.exists() && elements.size()>0) {
-							FileInputStream fontStream = new FileInputStream(fontFile);
-							book.getResources().add(new Resource(fontStream, fontPath));
-							page = createReflowPage(book, page, template, reflowPage, fontPath, elements, image_source, scale);
-						} else {
-							if (reflowPage.hasPage()) {
-								page = createReflowPage(book, page, template, reflowPage);
+						if (properties.getProperty("enable_fontforge", "no").equals("yes")) {
+							File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, scale, elements, page);
+							in.close();
+							String fontPath = String.format("font/font%d.ttf", page);
+							if (fontFile.exists() && elements.size()>0) {
+								FileInputStream fontStream = new FileInputStream(fontFile);
+								book.getResources().add(new Resource(fontStream, fontPath));
+								page = createReflowPageWithFont(book, page, template, reflowPage, fontPath, elements, image_source, scale);
+							} else {
+								if (reflowPage.hasPage()) {
+									page = createReflowPage(book, page, template, reflowPage);
+								}
+								page = createImagePage(book, page, template, item);
 							}
-							page = createImagePage(book, page, template, item);
+						} else {
+							LayoutAnalyzer.analyzePageLayout(image_source, image_binary, elements, false, scale);
+							if (elements.size() > 0) {
+								page = createReflowPageWithImage(book, page, template, reflowPage, elements, image_source, scale);
+							} else {
+								if (reflowPage.hasPage()) {
+									page = createReflowPage(book, page, template, reflowPage);
+								}
+								page = createImagePage(book, page, template, item);
+							}
 						}
 						cvReleaseImage(image_source);
 						cvReleaseImage(image_binary);
@@ -408,8 +420,89 @@ public class Epub {
 		}			
 		return page;
 	}
+	
+	private int createReflowPageWithImage(Book book, int page, String template, 
+			ReflowPage reflowPage, 
+			ArrayList<LayoutElement> elements, IplImage image_source, double scale) {
+		try {
+			String css = String.format(".page%d { line-height: 1.5em; }\n", page);
 
-	private int createReflowPage(Book book, int page, String template, 
+			int imageIndex = 0;
+			StringBuffer body = new StringBuffer();
+			boolean inTextBlock = false;
+			LayoutElement prevLine = null;
+			for (LayoutElement le: elements) {
+				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+					if (prevLine != null) {
+						int lineSpace = prevLine.x()-(int)le.getMaxX();
+						if (lineSpace > le.width()*2.5) {
+							body.append("<br/><br/>\n");
+						} else if (lineSpace > le.width()*1.5){
+							body.append("<br/>\n");
+						}
+					}
+					if (!inTextBlock) {
+						body.append(String.format("<span class=\"page%d\">", page));
+						inTextBlock = true;
+					}
+					for (LayoutElement ch : le.getChildren()) {
+						cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(ch.rect, 1.0f/scale));
+						String imageFileName = String.format("image_%04d_%04d.png", page, imageIndex);
+						String imageFileURI = "images/" + imageFileName;
+						String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
+						cvSaveImage(imageFilePath, image_source);
+						
+						FileInputStream in = new FileInputStream(imageFilePath);
+						book.getResources().add(new Resource(in, imageFileURI));
+						in.close(); // Can not close stream here??
+						
+						imageIndex++;
+						body.append(String.format("<img src=\"%s\" width=\"%dem\"/>", imageFileURI, 1));
+					}
+					if (le.hasLF()) {
+						body.append("<br/>\n");
+					}
+					prevLine = le;
+				} else if (le.getType() == LayoutElement.TYPE_IMAGE) {
+					prevLine = null;
+					if (inTextBlock) {
+						body.append("</span>");
+						inTextBlock = false;
+					}
+					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1.0f/scale));
+					String imageFileName = String.format("image_%04d_%04d.png", page, imageIndex);
+					String imageFileURI = "images/" + imageFileName;
+					String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
+					cvSaveImage(imageFilePath, image_source);
+					
+					FileInputStream in = new FileInputStream(imageFilePath);
+					book.getResources().add(new Resource(in, imageFileURI));
+					in.close(); // Can not close stream here??
+					
+					imageIndex++;
+					String height = le.height() > 754 ? "100%" : Integer.toString(le.height());
+					body.append(String.format("<img src=\"%s\" height=\"%s\"/><br/><br/>", imageFileURI, height));
+				}
+			}
+			if (inTextBlock) {
+				body.append("</span>");
+				inTextBlock = false;
+			}
+			
+			reflowPage.appendCss(css);
+			reflowPage.appendBody(body);
+			
+			String html = template.replaceAll("%%CSS%%", css);
+			html = html.replaceAll("%%BODY%%", body.toString());
+			
+	    	page++;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return page;
+	}
+	
+	private int createReflowPageWithFont(Book book, int page, String template, 
 			ReflowPage reflowPage, String fontPath, 
 			ArrayList<LayoutElement> elements, IplImage image_source, double scale) {
 		try {

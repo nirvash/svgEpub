@@ -15,6 +15,7 @@
 <entry key="potrace_option">-s -u 7 -a 0</entry>
 
 <entry key="enable_opencv">no</entry>
+<entry key="enable_fontforge">no</entry>
 <entry key="fontforge_path"></entry>
   
 <entry key="pageProgressionDirection">rtl</entry> <!-- rtl or ltr -->
