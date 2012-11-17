@@ -311,7 +311,6 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 
 		ImageTagRegistry.getRegistry().flushCache();
 		if (this.getSVGDocument() != null) {
-			this.flush();
 			this.flushImageCache();
 			this.setDocument(null);
 		}
@@ -329,7 +328,6 @@ public class CustomSVGCanvas extends JSVGCanvas  {
 		
 		ImageTagRegistry.getRegistry().flushCache();
 		if (this.getSVGDocument() != null) {
-			this.flush();
 			this.flushImageCache();
 			this.setDocument(null);
 		}

@@ -151,15 +151,34 @@ public class ImageUtility {
 		IplImage image_edge   = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
 		
 		cvResize(image_grey, image_target, CV_INTER_LINEAR);
+		cvNot(image_target, image_target);
+		cvAddWeighted(image_target, 1.0f, image_target, 0.3f, 0.0f, image_target);
+		cvNot(image_target, image_target);
 
 		try {
 			if (!isColorImage) {
 				if (!containsIllust) {
+					/*
 					int blockSize = 31;
 					int inv = isNot ? CV_THRESH_BINARY_INV : CV_THRESH_BINARY;
 					cvAdaptiveThreshold( image_target , image_target, 255,
-							 CV_ADAPTIVE_THRESH_MEAN_C,
+							 CV_ADAPTIVE_THRESH_MEAN_C ,
 							 inv, blockSize, 5 );
+					*/
+					int blockSize = 23;
+					cvAdaptiveThreshold( image_target , image_edge, 255,
+							 CV_ADAPTIVE_THRESH_MEAN_C,
+							 CV_THRESH_BINARY_INV, blockSize, 5 );
+					
+					IplImage image_beta = cvCreateImage( size_target, IPL_DEPTH_8U, 1 );
+
+					cvThreshold(image_target, image_beta, 0, 255,	CV_THRESH_BINARY_INV | CV_THRESH_OTSU);
+					cvOr(image_edge, image_beta, image_target, null);
+					
+					if (!isNot) {
+						cvNot(image_target, image_target);
+					}
+					cvReleaseImage(image_beta);
 				} else if (isComplicatedIllust) {
 					IplImage image_simple = cvCreateImage( size_source, IPL_DEPTH_8U, 1);
 					cvSmooth (image_grey, image_simple, CV_BILATERAL, 10, 10, 60, 40);
@@ -357,6 +376,37 @@ public class ImageUtility {
 		throw new ParseException(null);
 	}
 	
+	public static Document createSvgDocument2(Rectangle clipRect, Rectangle imageRect, String imageURI) {
+		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
+		Document doc = impl.createDocument(svgNS, "svg", null);
+
+		Element svgRootOuter = doc.getDocumentElement();
+
+		svgRootOuter.setAttribute("id", "root");
+		svgRootOuter.setAttributeNS(null , "width", Integer.toString(clipRect.width));
+		svgRootOuter.setAttributeNS(null , "height", Integer.toString(clipRect.height));
+		svgRootOuter.setAttributeNS(null, "viewBox", 
+				String.format("%d %d %d %d",  0, 0, clipRect.width, clipRect.height));
+		svgRootOuter.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
+		
+		Element image = doc.createElementNS(svgNS, "image");
+		image.setAttributeNS(null, "width", Integer.toString(imageRect.width));
+		image.setAttributeNS(null, "height", Integer.toString(imageRect.height));
+		XLinkSupport.setXLinkHref(image,  imageURI);
+
+		Element svgRootInner = (Element) doc.createElementNS(svgNS, "svg");
+		svgRootInner.setAttribute("id", "root_inner");
+		svgRootInner.setAttributeNS(null , "width", Integer.toString(clipRect.width));
+		svgRootInner.setAttributeNS(null , "height", Integer.toString(clipRect.height));
+		svgRootInner.setAttributeNS(null, "viewBox", 
+				String.format("%d %d %d %d",  clipRect.x, clipRect.y, clipRect.width, clipRect.height));
+		svgRootInner.setAttributeNS(null, "preserveAspectRatio", "xMidYMid slice");
+		
+		svgRootOuter.appendChild(svgRootInner);
+		svgRootInner.appendChild(image);
+
+		return doc;
+	}
 	
 	public static Document createSvgDocument(Rectangle clipRect, Rectangle imageRect, String imageURI, boolean isPreview, int margin) {
 		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();

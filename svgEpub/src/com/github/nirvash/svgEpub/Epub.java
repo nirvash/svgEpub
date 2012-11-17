@@ -150,7 +150,8 @@ public class Epub {
 		InputStream is = svgEpubMainPanel.class.getResourceAsStream("/resources/page_template.xhtml");
 		String template = convertInputStreamToString(is);
 		is.close();
-		
+		boolean enableFontforge = properties.getProperty("enable_fontforge", "no").equals("yes");
+
 		int page = 1;
 		
 		ReflowPage reflowPage = new ReflowPage();
@@ -185,11 +186,11 @@ public class Epub {
 						}
 						
 						IplImage image_source = cvLoadImage(file.getPath());
-						double scale = 1;
+						double scale = enableFontforge ? 1 : 1;
 						CvSize size_target = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 						IplImage image_binary = cvCreateImage( size_target, IPL_DEPTH_8U, 1);
 						
-						if (properties.getProperty("enable_fontforge", "no").equals("yes")) {
+						if (enableFontforge) {
 							File fontFile = LayoutAnalyzer.createFont(image_source, image_binary, scale, elements, page);
 							in.close();
 							String fontPath = String.format("font/font%d.ttf", page);
@@ -206,7 +207,8 @@ public class Epub {
 						} else {
 							LayoutAnalyzer.analyzePageLayout(image_source, image_binary, elements, false, scale);
 							if (elements.size() > 0) {
-								page = createReflowPageWithImage(book, page, template, reflowPage, elements, image_source, scale);
+//								page = createReflowPageWithImage2(book, page, template, reflowPage, elements, image_source, item, scale);
+								page = createReflowPageWithImage(book, page, template, reflowPage, elements, image_source, image_binary, scale);
 							} else {
 								if (reflowPage.hasPage()) {
 									page = createReflowPage(book, page, template, reflowPage);
@@ -423,10 +425,12 @@ public class Epub {
 	
 	private int createReflowPageWithImage(Book book, int page, String template, 
 			ReflowPage reflowPage, 
-			ArrayList<LayoutElement> elements, IplImage image_source, double scale) {
+			ArrayList<LayoutElement> elements, IplImage image_source, IplImage image_binary, double scale) {
 		try {
 			String css = String.format(".page%d { line-height: 1.5em; }\n", page);
-
+//			ImageUtility.binalize(image_source, image_binary, false);
+			cvCvtColor( image_source, image_binary, CV_RGB2GRAY );
+			
 			int imageIndex = 0;
 			StringBuffer body = new StringBuffer();
 			boolean inTextBlock = false;
@@ -446,11 +450,11 @@ public class Epub {
 						inTextBlock = true;
 					}
 					for (LayoutElement ch : le.getChildren()) {
-						cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(ch.rect, 1.0f/scale));
+						cvSetImageROI(image_binary, LayoutAnalyzer.toCvRect(ch.rect, 1));
 						String imageFileName = String.format("image_%04d_%04d.png", page, imageIndex);
 						String imageFileURI = "images/" + imageFileName;
 						String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
-						cvSaveImage(imageFilePath, image_source);
+						cvSaveImage(imageFilePath, image_binary);
 						
 						FileInputStream in = new FileInputStream(imageFilePath);
 						book.getResources().add(new Resource(in, imageFileURI));
@@ -458,6 +462,92 @@ public class Epub {
 						
 						imageIndex++;
 						body.append(String.format("<img src=\"%s\" width=\"%dem\"/>", imageFileURI, 1));
+					}
+					if (le.hasLF()) {
+						body.append("<br/>\n");
+					}
+					prevLine = le;
+				} else if (le.getType() == LayoutElement.TYPE_IMAGE) {
+					prevLine = null;
+					if (inTextBlock) {
+						body.append("</span>");
+						inTextBlock = false;
+					}
+					cvSetImageROI(image_source, LayoutAnalyzer.toCvRect(le.rect, 1.0f/scale));
+					String imageFileName = String.format("image_%04d_%04d.png", page, imageIndex);
+					String imageFileURI = "images/" + imageFileName;
+					String imageFilePath = PathUtil.getTmpDirectory() +  imageFileName;
+					cvSaveImage(imageFilePath, image_source);
+					
+					FileInputStream in = new FileInputStream(imageFilePath);
+					book.getResources().add(new Resource(in, imageFileURI));
+					in.close(); // Can not close stream here??
+					
+					imageIndex++;
+					String height = le.height() > 754 ? "100%" : Integer.toString(le.height());
+					body.append(String.format("<img src=\"%s\" height=\"%s\"/><br/><br/>", imageFileURI, height));
+				}
+			}
+			if (inTextBlock) {
+				body.append("</span>");
+				inTextBlock = false;
+			}
+			
+			reflowPage.appendCss(css);
+			reflowPage.appendBody(body);
+			
+			String html = template.replaceAll("%%CSS%%", css);
+			html = html.replaceAll("%%BODY%%", body.toString());
+			
+	    	page++;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return page;
+	}
+	
+
+	private int createReflowPageWithImage2(Book book, int page, String template, 
+			ReflowPage reflowPage, 
+			ArrayList<LayoutElement> elements, IplImage image_source, ListItem item, double scale) {
+		try {
+			String css = String.format(".page%d { line-height: 1.5em; }\n", page);
+			
+			String resourceName = String.format("page_%04d", page);
+	    	String extension = PathUtil.getExtension(item.getFilename());
+	    	String imageURI = "images/" + resourceName + "." + extension;
+	    	
+	    	Rectangle imageRect = new Rectangle(0, 0, image_source.width(), image_source.height());
+	    	
+	    	InputStream stream = item.getInputStream();
+			book.getResources().add(new Resource(stream, imageURI));
+			stream.close();
+			
+			int imageIndex = 0;
+			StringBuffer body = new StringBuffer();
+			boolean inTextBlock = false;
+			LayoutElement prevLine = null;
+			for (LayoutElement le: elements) {
+				if (le.getType() == LayoutElement.TYPE_TEXT_VERTICAL) {
+					if (prevLine != null) {
+						int lineSpace = prevLine.x()-(int)le.getMaxX();
+						if (lineSpace > le.width()*2.5) {
+							body.append("<br/><br/>\n");
+						} else if (lineSpace > le.width()*1.5){
+							body.append("<br/>\n");
+						}
+					}
+					if (!inTextBlock) {
+						body.append(String.format("<span class=\"page%d\">", page));
+						inTextBlock = true;
+					}
+					for (LayoutElement ch : le.getChildren()) {
+						Document doc = ImageUtility.createSvgDocument2(ch.rect, imageRect, imageURI);
+						doc.normalizeDocument();
+						String svgTag = serializeDocument(doc);
+						body.append(svgTag);
+
+						imageIndex++;
 					}
 					if (le.hasLF()) {
 						body.append("<br/>\n");

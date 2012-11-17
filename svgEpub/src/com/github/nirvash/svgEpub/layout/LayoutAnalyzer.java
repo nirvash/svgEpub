@@ -133,10 +133,11 @@ public class LayoutAnalyzer {
 		HashMap<Integer, Boolean> fontMap = new HashMap<Integer, Boolean>();
 
 		Profile.setLaptime("binalize");
-		double scale = 2.0;
+		double scale = 4.0;
 		CvSize targetSize = new CvSize((int)(image_source.width()*scale), (int)(image_source.height()*scale));
 		IplImage image_binary = cvCreateImage( targetSize, IPL_DEPTH_8U, 1);
 		ImageUtility.binalize(image_source, image_binary, false);
+		cvSaveImage("test.png", image_binary);
 		scale = scale/scaleIn;
 		
 //		cvNot(image_binary, image_binary);
@@ -190,7 +191,7 @@ public class LayoutAnalyzer {
 					String svgFilename = String.format("%su%04x.%s", inputPath, code, ext_out);
 					File svgFile = Epub.convertToSvg(charBitmapFile, svgFilename, new Rectangle(bImage.getWidth(), bImage.getHeight()));
 					svgFile.deleteOnExit();
-					//charBitmapFile.delete();
+					charBitmapFile.delete();
 				}
 
 				cvReleaseImage(image_char);
