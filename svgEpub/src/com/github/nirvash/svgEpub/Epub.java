@@ -15,7 +15,10 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,6 +60,7 @@ import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 import nl.siegmann.epublib.domain.Author;
 import nl.siegmann.epublib.domain.Book;
+import nl.siegmann.epublib.domain.Property;
 import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.epub.EpubReader;
 import nl.siegmann.epublib.epub.EpubWriter;
@@ -107,6 +111,7 @@ public class Epub {
 			Author auth = new Author(getAuthor());
 			auth.setFileAs(getAuthorFileAs());
 			book.getMetadata().addAuthor(auth);
+			addOtherProperties2(book);
 			book.getMetadata().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			book.getSpine().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			
@@ -128,6 +133,28 @@ public class Epub {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}		
+	}
+
+	private void addOtherProperties2(Book book) {
+		List<Property> otherProperties2 = new ArrayList<Property>();
+
+		Property prop1 = new Property();
+		prop1.setLocalPart("meta");
+		Map<String, String> attrs1 = new HashMap<String, String>();
+		attrs1.put("name", "fixed-layout");
+		attrs1.put("content", "true");
+		prop1.setAttributes(attrs1);
+		otherProperties2.add(prop1);
+		
+		Property prop2 = new Property();
+		prop2.setLocalPart("meta");
+		Map<String, String> attrs2 = new HashMap<String, String>();
+		attrs2.put("name", "book-type");
+		attrs2.put("content", "comic");
+		prop2.setAttributes(attrs2);
+		otherProperties2.add(prop2);
+		
+		book.getMetadata().setOtherProperties2(otherProperties2);
 	}
 
 	public String getAuthorFileAs() {

@@ -419,6 +419,7 @@ public class ImageUtility {
 		Element svgRootOuter = doc.getDocumentElement();
 
 		svgRootOuter.setAttribute("id", "root");
+		svgRootOuter.setAttribute("version", "1.1");
 		svgRootOuter.setAttributeNS(null , "width", "100%");
 		svgRootOuter.setAttributeNS(null , "height", "100%");
 		svgRootOuter.setAttributeNS(null, "viewBox", 
@@ -434,6 +435,7 @@ public class ImageUtility {
 		if (isPreview) {
 			Element svgRootInner = (Element) doc.createElementNS(svgNS, "svg");
 			svgRootInner.setAttribute("id", "root_inner");
+			svgRootInner.setAttribute("version", "1.1");
 			svgRootInner.setAttributeNS(null , "width", Integer.toString(clipRect.width));
 			svgRootInner.setAttributeNS(null , "height", Integer.toString(clipRect.height));
 			svgRootInner.setAttributeNS(null, "viewBox", 

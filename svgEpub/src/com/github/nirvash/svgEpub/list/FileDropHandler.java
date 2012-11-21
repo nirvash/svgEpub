@@ -130,7 +130,7 @@ public class FileDropHandler extends TransferHandler {
 	private int addZipFileItems(DefaultListModel listModel, int index, File file) {
 		ZipFile zipFile;
 		try {
-			zipFile = new ZipFile(file, null);
+			zipFile = new ZipFile(file, "windows-31j");
 			Enumeration<? extends ZipArchiveEntry> e = zipFile.getEntries();
 			while (e.hasMoreElements()) {
 				ZipArchiveEntry ze = e.nextElement();
