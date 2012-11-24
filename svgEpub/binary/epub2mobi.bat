@@ -1,7 +1,8 @@
 cd /d %~dp0
 set infile="%~f1"
 set inmobi="%~dpn1.mobi"
-set outmobi="%~dpn1-stripped.mobi"
+REM set outmobi="%~dpn1-stripped.mobi"
+set outmobi="%~dpn1.mobi"
 set ext="%~x1"
 
 if %ext% == ".epub" kindlegen.exe %infile%

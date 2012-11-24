@@ -105,6 +105,7 @@ public class RuntimeUtility {
     		stdoutThread.getOutput(msg);
     		stderrThread.getOutput(msg);
     	}
+    	ret |= process.waitFor();
 		return ret;
     }
 }

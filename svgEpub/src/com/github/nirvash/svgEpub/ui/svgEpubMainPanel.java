@@ -583,7 +583,10 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			}
 		} else if (e.getActionCommand().equals("Clear")) {
 			DefaultListModel model = (DefaultListModel)jListFile.getModel();
+			if (model.size() == 0) return;
 			clipListModel.setUpdating(true);
+			ListItem item = (ListItem)model.get(0);
+			item.release();
 			model.clear();
 			clipListModel.setUpdating(false);
 			clipListModel.clear();
@@ -712,19 +715,34 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			
 			th.start();
 		} else if (e.getActionCommand().equals("SelectSpread")) {
-			BookListModel model = (BookListModel)jListFile.getModel();
-			ArrayList<Integer> selectedIndex = new ArrayList<Integer>();
-			for (int i=0; i<model.size(); i++) {
-				ListItem item = (ListItem)model.get(i);
-				if (ImageUtility.isSpreadPage(item)) {
-					selectedIndex.add(i);
+			final BookListModel model = (BookListModel)jListFile.getModel();
+			final ProgressMonitor monitor = new ProgressMonitor(this, "Wait for a while", "Checking wide pages...", 0, model.size());
+			monitor.setMillisToDecideToPopup(0);
+			monitor.setMillisToPopup(0);
+			monitor.setProgress(0);
+
+			Runnable runner = new Runnable() {
+				@Override
+				public void run() {
+					ArrayList<Integer> selectedIndex = new ArrayList<Integer>();
+					for (int i=0; i<model.size(); i++) {
+						ListItem item = (ListItem)model.get(i);
+						if (ImageUtility.isSpreadPage(item)) {
+							selectedIndex.add(i);
+						}
+						monitor.setProgress(i);
+					}
+					int[] indicies = new int[selectedIndex.size()];
+					for (int i=0; i<indicies.length; i++) {
+						indicies[i] = selectedIndex.get(i);
+					}
+					jListFile.setSelectedIndices(indicies);
+					monitor.close();
 				}
-			}
-			int[] indicies = new int[selectedIndex.size()];
-			for (int i=0; i<indicies.length; i++) {
-				indicies[i] = selectedIndex.get(i);
-			}
-			jListFile.setSelectedIndices(indicies);
+			};
+			
+			Thread th = new Thread(runner);
+			th.start();
 		} else if (e.getActionCommand().equals("CreateBoxFile")) {
 			if (jListFile.isSelectionEmpty()) return;
 			ListItem item = (ListItem)jListFile.getSelectedValue();

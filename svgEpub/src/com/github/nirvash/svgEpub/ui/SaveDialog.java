@@ -62,6 +62,7 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 	private JLabel jLabel5;
 	private JTextField jTextField5;
 	private JCheckBox jCheckBoxReflow;
+	private JCheckBox jCheckBoxConvertMobi;
 
 	
 	private Epub epubWriter = new Epub();
@@ -326,18 +327,29 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 			addGrid(jPanel2, getJLabel3(),		0, 5, 0.0f);
 			addGrid(jPanel2, getJTextField3(),	1, 5, 1.0f);
 			
-			addGrid(jPanel2, getCheckBox(),		1, 6, 0.0f);
+			addGrid(jPanel2, getCheckBoxReflow(),			1, 6, 0.0f);
+			addGrid(jPanel2, getCheckBoxConvertMobi(),		2, 6, 0.0f);
 		}
 		return jPanel2;
 	}
 
-	private JCheckBox getCheckBox() {
+	private JCheckBox getCheckBoxReflow() {
 		if (jCheckBoxReflow == null) {
 			jCheckBoxReflow = new JCheckBox();
 			jCheckBoxReflow.setText("Reflow Text");
 		}
 		return jCheckBoxReflow;
 	}
+	
+	private JCheckBox getCheckBoxConvertMobi() {
+		if (jCheckBoxConvertMobi == null) {
+			jCheckBoxConvertMobi = new JCheckBox();
+			jCheckBoxConvertMobi.setText("Convert to mobi");
+			jCheckBoxConvertMobi.setSelected(true);
+		}
+		return jCheckBoxConvertMobi;
+	}
+
 
 	private void addGrid(JComponent parent, JComponent child, int x, int y, float w) {
 		GridBagLayout layout = (GridBagLayout)parent.getLayout();
@@ -450,7 +462,8 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 		epubWriter.setAuthor(jTextField2.getText());
 		epubWriter.setAuthorFileAs(jTextField5.getText());
 		epubWriter.setPath(path);
-		ProgressMonitor monitor = new ProgressMonitor(this, "Saving", "Generating epub file...", 0, epubWriter.getTotalPage());
+		epubWriter.setConvertToMobi(jCheckBoxConvertMobi.isSelected());
+		ProgressMonitor monitor = new ProgressMonitor(this, "Saving", "Generating epub file...", 0, epubWriter.getTotalPage()+1);
 		monitor.setMillisToDecideToPopup(0);
 		monitor.setMillisToPopup(0);
 		epubWriter.setMonitor(monitor);
@@ -504,9 +517,9 @@ public class SaveDialog extends JDialog implements ActionListener, ComponentList
 			String path = properties.getProperty("fontforge_path", "");
 			enableReflow = PathUtil.isExist(path);
 		}
-		getCheckBox().setEnabled(enableReflow);
+		getCheckBoxReflow().setEnabled(enableReflow);
 		if (!enableReflow) {
-			getCheckBox().setSelected(false);
+			getCheckBoxReflow().setSelected(false);
 		}
 	}
 

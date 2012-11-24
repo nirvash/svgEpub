@@ -76,6 +76,7 @@ public class Epub {
 	private String path;
 	private String outputFilename;
 	private boolean isReflow = false;
+	private boolean isConvertToMobi = false;
 	private ProgressMonitor monitor;
 	static private CustomProperties properties;
 	
@@ -127,12 +128,31 @@ public class Epub {
 			
 //			EpubWriter epubWriter = new EpubWriter();
 			epubWriter.write(book, zipOut);
-			monitor.setProgress(monitor.getMaximum());
 			zipOut.close();
 			out.close();
+			
+			if (isConvertToMobi) {
+				monitor.setNote("converting epub to mobi...");
+				convertToMobi(path);
+			}
+			monitor.setProgress(monitor.getMaximum()+1);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}		
+	}
+
+	private void convertToMobi(String path) {
+		File file = new File(path);
+		
+		ArrayList<String> commands = new ArrayList<String>();
+		commands.add(String.format("\"%s\"", "epub2mobi.bat"));
+		commands.add(String.format("\"%s\"", file.getPath()));
+	
+		try {
+			int ret = RuntimeUtility.execute(commands);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void addOtherProperties2(Book book) {
@@ -974,5 +994,9 @@ public class Epub {
 
 	public void setReflow(boolean isReflow) {
 		this.isReflow = isReflow;
+	}
+
+	public void setConvertToMobi(boolean isConvertToMobi) {
+		this.isConvertToMobi = isConvertToMobi;
 	}
 }

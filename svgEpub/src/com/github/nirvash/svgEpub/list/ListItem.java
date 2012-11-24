@@ -293,4 +293,18 @@ public class ListItem implements IFile {
 	public void setLayoutAnalyze(boolean doLayoutAnalyze) {
 		this.doLayoutAnalyze = doLayoutAnalyze;
 	}
+
+	public void release() {
+		try {
+			if (zipFile != null) {
+				zipFile.close();
+			} else if (rarFile != null) {
+				rarFile.close();
+			} else {
+				// NOP
+			}		
+		} catch (Exception e) {
+			
+		}
+	}
 }
