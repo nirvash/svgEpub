@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 
@@ -49,8 +50,10 @@ import com.github.nirvash.svgEpub.clip.ClipListModel;
 import com.github.nirvash.svgEpub.clip.ClipTemplate;
 import com.github.nirvash.svgEpub.layout.LayoutAnalyzer;
 import com.github.nirvash.svgEpub.list.BookListModel;
+import com.github.nirvash.svgEpub.list.FileComperator;
 import com.github.nirvash.svgEpub.list.FileDropHandler;
 import com.github.nirvash.svgEpub.list.FileItem;
+import com.github.nirvash.svgEpub.list.FileListComperator;
 import com.github.nirvash.svgEpub.list.FileRenderer;
 import com.github.nirvash.svgEpub.list.ItemSelectionListener;
 import com.github.nirvash.svgEpub.list.ListClipDropHandler;
@@ -143,8 +146,8 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 		System.setProperty("jna.library.path", workingDir);
 	}
 	
-	String[] menuEditItemTitle = {"Select two-page spread"};
-	String[] menuEditItemAction = {"SelectSpread"};
+	String[] menuEditItemTitle = {"Select two-page spread", "Sort"};
+	String[] menuEditItemAction = {"SelectSpread", "Sort"};
 	
 	String[] menuTestItemTitle = {"OCR", "Create box file"};
 	String[] menuTestItemAction = {"OCR", "CreateBoxFile"};
@@ -590,6 +593,18 @@ public class svgEpubMainPanel extends JFrame implements ActionListener {
 			model.clear();
 			clipListModel.setUpdating(false);
 			clipListModel.clear();
+		} else if (e.getActionCommand().equals("Sort")) {
+			BookListModel model = (BookListModel)jListFile.getModel();
+			if (model.size() == 0) return;
+			clipListModel.setUpdating(true);
+			Object[] contents = model.toArray();
+			Arrays.sort(contents, new FileListComperator());
+			model.clear();
+			for (Object o : contents) 
+			{
+				model.addElement(o);
+			}
+			clipListModel.setUpdating(false);
 		} else if (e.getActionCommand().equals("Create")) {
 			DefaultListModel model = (DefaultListModel) jListFile.getModel();
 			@SuppressWarnings("unchecked")
