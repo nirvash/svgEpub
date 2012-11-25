@@ -42,11 +42,11 @@ public class PathUtil {
 		return hasExtension(filename, ".svg");
 	}
 
-	private static boolean hasExtension(String filename, String ext) {
+	public static boolean hasExtension(String filename, String ext) {
 		return filename.toLowerCase().endsWith(ext);
 	}
 
-	private static boolean hasExtension(File file, String ext) {
+	public static boolean hasExtension(File file, String ext) {
 		return file.getName().toLowerCase().endsWith(ext);
 	}
 	

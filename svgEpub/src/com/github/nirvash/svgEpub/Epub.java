@@ -113,6 +113,7 @@ public class Epub {
 			auth.setFileAs(getAuthorFileAs());
 			book.getMetadata().addAuthor(auth);
 			addOtherProperties2(book);
+			addCover(book);
 			book.getMetadata().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			book.getSpine().setPageProgressionDirection(properties.getProperty("pageProgressionDirection"));
 			
@@ -155,8 +156,77 @@ public class Epub {
 		}
 	}
 
+	private void addCover(Book book) {
+		if (fileList.size() == 0) return;
+		ListItem firstPage = fileList.get(0);
+		if (PathUtil.isRasterFile(firstPage.getFilename())) {
+			String coverPageId = "page_0001";
+			if (PathUtil.hasExtension(firstPage.getFilename(), ".jpg") ||
+				PathUtil.hasExtension(firstPage.getFilename(), ".jpeg")) {
+				if (firstPage.isConvertToSVG()) {
+					coverPageId = "cover";
+					createCoverImage(book, firstPage);
+				}
+			} else {
+				coverPageId = "cover";
+				createCoverImage(book, firstPage);
+			}
+			
+			List<Property> otherProperties2 = book.getMetadata().getOtherProperties2();
+			Property propCover = new Property();
+			propCover.setLocalPart("meta");
+			Map<String, String> attrsCover = new HashMap<String, String>();
+			attrsCover.put("name", "cover");
+			attrsCover.put("content", coverPageId);
+			propCover.setAttributes(attrsCover);
+			otherProperties2.add(propCover);
+			
+			book.getMetadata().setOtherProperties2(otherProperties2);		
+		}
+	}
+	
+	private void createCoverImage(Book book, IFile item)  {
+    	String imageURI = "images/cover.jpg";
+
+		ArrayList<ClipListItem> clipList = item.getClipList();
+		
+		try {
+			InputStream stream = item.getInputStream();
+			BufferedImage image = ImageIO.read(stream);
+			stream.close();
+			
+			Rectangle imageRect = new Rectangle(0, 0, image.getWidth(), image.getHeight());
+			
+			for (int i=0; i<clipList.size(); i++) {
+				ClipListItem clipItem = clipList.get(i);
+
+		    	Rectangle clipRectOriginal = clipItem.getClipRect();
+		    	Rectangle clipRect = null;
+		    	
+	    		if (clipRectOriginal == null) {
+	    			clipRect = new Rectangle(0, 0, image.getWidth(), image.getHeight());
+	    		} else {
+	    			clipRect = clipRectOriginal;
+	    		}
+		    	clipRect = new Rectangle(clipRectOriginal);
+		    	clipRect = clipRect.intersection(imageRect);
+		    	BufferedImage clipImage = image.getSubimage(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+		    	String clipImageFilePath = PathUtil.getTmpDirectory() + "cover.jpg";
+		    	File clipImageFile = new File(clipImageFilePath);
+		    	clipImageFile.deleteOnExit();
+		    	ImageIO.write(clipImage, "jpg", clipImageFile);
+		    	InputStream clipStream = new FileInputStream(clipImageFile);
+				book.getResources().add(new Resource(clipStream, imageURI));
+				clipStream.close();
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return;
+	}
+	
 	private void addOtherProperties2(Book book) {
-		List<Property> otherProperties2 = new ArrayList<Property>();
+		List<Property> otherProperties2 = book.getMetadata().getOtherProperties2();
 
 		Property prop1 = new Property();
 		prop1.setLocalPart("meta");
