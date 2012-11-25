@@ -42,6 +42,10 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import org.apache.batik.bridge.DocumentLoader;
+import org.apache.batik.bridge.UserAgentAdapter;
+import org.apache.batik.dom.svg.SVGDOMImplementation;
+import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 
 import com.github.nirvash.svgEpub.clip.ClipListItem;
@@ -205,6 +209,7 @@ public class Epub {
 		    	
 	    		if (clipRectOriginal == null) {
 	    			clipRect = new Rectangle(0, 0, image.getWidth(), image.getHeight());
+	    			clipRectOriginal = clipRect;
 	    		} else {
 	    			clipRect = clipRectOriginal;
 	    		}
@@ -880,7 +885,49 @@ public class Epub {
 		return page;
 	}
 
-	
+
+	private int createSvgPageTest(Book book, int page, String template, IFile item) throws IOException,
+			UnsupportedEncodingException {
+		try {
+			InputStream stream = item.getInputStream();
+            DOMImplementation impl = SVGDOMImplementation.getDOMImplementation(); 
+            String svgNS = SVGDOMImplementation.SVG_NAMESPACE_URI;
+            String svgURI = item.getURI().toString();
+            
+            UserAgentAdapter ua = new UserAgentAdapter(); 
+	        DocumentLoader loader = new DocumentLoader(ua); 
+	        Document svgBody = loader.loadDocument(svgURI); 
+			stream.close();
+			
+			ArrayList<ClipListItem> clipList = item.getClipList();
+			for (ClipListItem clipItem : clipList) {
+				String pageName = String.format("page_%04d", page);
+				String pageFile = pageName + ".xhtml";
+				String svgFile = "images/" + pageName + ".svg";
+	        
+		    	Rectangle imageRect = ImageUtility.getSvgSize(item);
+		    	Rectangle clipRect = clipItem.getClipRect();
+				Document doc = ImageUtility.createSvgDocument2(clipRect, imageRect, svgBody, true, 0);
+				doc.normalizeDocument();
+				String svgText = serializeDocument(doc);
+				ByteArrayInputStream svgBi = new ByteArrayInputStream(svgText.getBytes("UTF-8"));
+				book.getResources().add(new Resource(svgBi, svgFile));
+//				book.addSection(pageName, new Resource(svgBi, ile));
+				svgBi.close();
+								
+				String svgTag = "<img width=\"100%\" src=\"" + svgFile + "\" />";
+				String html = template.replaceAll("%%BODY%%", svgTag);
+				ByteArrayInputStream bi = new ByteArrayInputStream(html.getBytes("UTF-8"));
+				book.addSection(pageName, new Resource(bi, pageFile));
+				bi.close();
+				page++;
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return page;
+	}	
+
 	private int createSvgPage(Book book, int page, String template, IFile item) throws IOException,
 			UnsupportedEncodingException {
 		try {
@@ -916,6 +963,7 @@ public class Epub {
 		return page;
 	}
 
+	
 	private String serializeDocument(Document doc) {
 		try {
 			//set up a transformer

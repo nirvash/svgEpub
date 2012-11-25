@@ -30,6 +30,8 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import com.github.nirvash.svgEpub.layout.LayoutElement;
 import com.github.nirvash.svgEpub.list.IFile;
@@ -447,6 +449,58 @@ public class ImageUtility {
 		} else {
 			svgRootOuter.appendChild(image);
 		}
+		return doc;
+	}
+
+	public static Document createSvgDocument2(Rectangle clipRect, Rectangle imageRect, Document svgBody, boolean isPreview, int margin) {
+		DOMImplementation impl = SVGDOMImplementation.getDOMImplementation();
+		if (clipRect == null) {
+			clipRect = imageRect;
+		}
+		Rectangle rootRect = isPreview ? clipRect : imageRect;
+		Document doc = svgBody;
+
+		Element svgRoot = doc.getDocumentElement();
+		NodeList svgNodes = doc.getElementsByTagName("svg");
+		Element svgNode = (Element)svgNodes.item(0);
+		Node documentRoot = svgNode.getParentNode();
+		documentRoot.removeChild(svgNode);
+
+		Element svgRootOuter = (Element) doc.createElementNS(svgNS, "svg");
+
+		svgRootOuter.setAttribute("id", "root");
+		svgRootOuter.setAttribute("version", "1.1");
+		svgRootOuter.setAttributeNS(null , "width", "100%");
+		svgRootOuter.setAttributeNS(null , "height", "100%");
+		svgRootOuter.setAttributeNS(null, "viewBox", 
+				String.format("%d %d %d %d",  -margin, -margin, rootRect.width + margin*2, rootRect.height + margin*2));
+		svgRootOuter.setAttributeNS(null, "preserveAspectRatio", "xMidYMid meet");
+
+//		Element image = doc.createElementNS(svgNS, "image");
+//		image.setAttributeNS(null, "width", Integer.toString(imageRect.width));
+//		image.setAttributeNS(null, "height", Integer.toString(imageRect.height));
+		
+//		XLinkSupport.setXLinkHref(image,  imageURI);
+//		image.setAttributeNS(null, "xlink:href", imageURI);
+
+		if (isPreview) {
+			Element svgRootInner = (Element) doc.createElementNS(svgNS, "svg");
+			svgRootInner.setAttribute("id", "root_inner");
+			svgRootInner.setAttribute("version", "1.1");
+			svgRootInner.setAttributeNS(null , "width", Integer.toString(clipRect.width));
+			svgRootInner.setAttributeNS(null , "height", Integer.toString(clipRect.height));
+			svgRootInner.setAttributeNS(null, "viewBox", 
+					String.format("%d %d %d %d",  clipRect.x, clipRect.y, clipRect.width, clipRect.height));
+			svgRootInner.setAttributeNS(null, "preserveAspectRatio", "xMidYMid slice");
+			
+			svgRootOuter.appendChild(svgRootInner);
+			svgRootInner.appendChild(svgNode);
+		} else {
+			svgRootOuter.appendChild(svgNode);
+		}
+		
+		documentRoot.appendChild(svgRootOuter);
+		
 		return doc;
 	}
 

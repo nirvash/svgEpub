@@ -10,4 +10,4 @@ kindlestrip.exe %inmobi% %outmobi%
 
 @echo off
 REM pause on error
-if ERRORLEVEL 1 pause
+REM if ERRORLEVEL 1 pause
